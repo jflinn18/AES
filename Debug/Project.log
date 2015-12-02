@@ -1,0 +1,14 @@
+﻿Build started 12/1/2015 4:41:19 PM.
+     1>Project "C:\Users\jflinn18\Desktop\AES\Project.vcxproj" on node 2 (Build target(s)).
+     1>_MASM:
+         Assembling AddTwo.asm...
+         cmd.exe /C "C:\Users\jflinn18\AppData\Local\Temp\tmp57d64a89ca5c4f9282de44844dc48809.cmd"
+         ml.exe /c /nologo /Sg /WX /Zi /Fo"Debug\AddTwo.obj" /Fl"Project.lst" /I "c:\Irvine" /W3 /errorReport:prompt  /TaAddTwo.asm
+     1>AddTwo.asm(133): error A2001: immediate operand not allowed
+     1>AddTwo.asm(135): error A2070: invalid instruction operands
+     1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V140\BuildCustomizations\masm.targets(50,5): error MSB3721: The command "ml.exe /c /nologo /Sg /WX /Zi /Fo"Debug\AddTwo.obj" /Fl"Project.lst" /I "c:\Irvine" /W3 /errorReport:prompt  /TaAddTwo.asm" exited with code 1.
+     1>Done Building Project "C:\Users\jflinn18\Desktop\AES\Project.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:00.15
