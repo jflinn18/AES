@@ -1,8 +1,7 @@
-Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/01/15 16:41:19
-MASM Template 0(main.asm				     Page 1 - 1
+Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/03/15 16:32:16
+AddTwo.asm						     Page 1 - 1
 
 
-				TITLE MASM Template 0(main.asm)
 
 				; Program Desription:
 				; Author:
@@ -10,6 +9,16 @@ Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/01/15 16:41:19
 				; Revisions:
 				; Date: 0 0 0 0Modified by: 0 0 Changes:
 				;
+
+
+
+
+				;http://www.adamberent.com/documents/AESbyExample.pdf
+
+
+
+
+
 
 				INCLUDE Irvine32.inc
 			      C ; Include file for Irvine32.lib             (Irvine32.inc)
@@ -45,28 +54,44 @@ Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/01/15 16:41:19
 					mov ecx, 16
 
 				L2:
-					mov al, State;[ecx] ; lower nibble
-					mov ah, State;[ecx] ; upper nibble
+					mov eax, 0
 
-					and al, 00001111b
-					and ah, 11110000b
+					mov al, State[ecx-1]; lower nibble
+							;mov ah, State; upper nibble
 
-					shr ah, 4
+							;and al, 00001111b
+							;and ah, 11110000b
+							;shr ah, 4
+
+							;push eax
+							;mov ebx, 0
+
+							;mov bl, al
+							;mov bh, ah
+							;movzx eax, bh
+							;imul eax, 16
+
+							;mov bh, 0
+							;add eax, ebx
+
+							;pop eax
+
+					mov esi, OFFSET sbox
+					add esi, eax
+					mov bl, BYTE PTR [esi]
+					mov State[ecx-1], bl
+
+					loop L2
+
+				ENDM
+
+				mSwap MACRO y:REQ, x:REQ
 					push eax
-
-					mov bl, al
-					mov bh, ah
-					movzx eax, bh
-					mul 16
-
-					add eax, bl
-
+					mov al, y
+					mov ah, x
+					mov y, ah
+					mov x, al
 					pop eax
-
-					mov bh, sbox[bl]
-
-					loop L1
-
 				ENDM
 
  00000000			.data
@@ -131,225 +156,337 @@ Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/01/15 16:41:19
 	   D9 8E 94 9B 1E
 	   87 E9 CE 55 28
 	   DF
- 000000F0  8C A1 89 0D BF			BYTE	08Ch, 0A1h, 089h, 00Dh, 0BFh, 0E6h, 042h, 068h, 041h, 099h, 02Dh, 00Fh, 0B0h, 054h, 0BBh, 016h; S-Box Inverse Lookup Tablesboxinv	BYTE	052h, 009h, 06Ah, 0D5h, 030h, 036h, 0A5h, 038h, 0BFh, 040h, 0A3h, 09Eh, 081h, 0F3h, 0D7h, 0FBh
+ 000000F0  8C A1 89 0D BF			BYTE	08Ch, 0A1h, 089h, 00Dh, 0BFh, 0E6h, 042h, 068h, 041h, 099h, 02Dh, 00Fh, 0B0h, 054h, 0BBh, 016h
 	   E6 42 68 41 99
 	   2D 0F B0 54 BB
 	   16
- 00000100  7C E3 39 82 9B			BYTE	07Ch, 0E3h, 039h, 082h, 09Bh, 02Fh, 0FFh, 087h, 034h, 08Eh, 043h, 044h, 0C4h, 0DEh, 0E9h, 0CBh
+				; S-Box Inverse Lookup Table
+ 00000100 52 09 6A D5 30	sboxinv	BYTE	052h, 009h, 06Ah, 0D5h, 030h, 036h, 0A5h, 038h, 0BFh, 040h, 0A3h, 09Eh, 081h, 0F3h, 0D7h, 0FBh
+	   36 A5 38 BF 40
+	   A3 9E 81 F3 D7
+	   FB
+ 00000110  7C E3 39 82 9B			BYTE	07Ch, 0E3h, 039h, 082h, 09Bh, 02Fh, 0FFh, 087h, 034h, 08Eh, 043h, 044h, 0C4h, 0DEh, 0E9h, 0CBh
 	   2F FF 87 34 8E
 	   43 44 C4 DE E9
 	   CB
- 00000110  54 7B 94 32 A6			BYTE	054h, 07Bh, 094h, 032h, 0A6h, 0C2h, 023h, 03Dh, 0EEh, 04Ch, 095h, 00Bh, 042h, 0FAh, 0C3h, 04Eh
+ 00000120  54 7B 94 32 A6			BYTE	054h, 07Bh, 094h, 032h, 0A6h, 0C2h, 023h, 03Dh, 0EEh, 04Ch, 095h, 00Bh, 042h, 0FAh, 0C3h, 04Eh
 	   C2 23 3D EE 4C
 	   95 0B 42 FA C3
 	   4E
- 00000120  08 2E A1 66 28			BYTE	008h, 02Eh, 0A1h, 066h, 028h, 0D9h, 024h, 0B2h, 076h, 05Bh, 0A2h, 049h, 06Dh, 08Bh, 0D1h, 025h
+ 00000130  08 2E A1 66 28			BYTE	008h, 02Eh, 0A1h, 066h, 028h, 0D9h, 024h, 0B2h, 076h, 05Bh, 0A2h, 049h, 06Dh, 08Bh, 0D1h, 025h
 	   D9 24 B2 76 5B
 	   A2 49 6D 8B D1
 	   25
- 00000130  72 F8 F6 64 86			BYTE	072h, 0F8h, 0F6h, 064h, 086h, 068h, 098h, 016h, 0D4h, 0A4h, 05Ch, 0CCh, 05Dh, 065h, 0B6h, 092h
+ 00000140  72 F8 F6 64 86			BYTE	072h, 0F8h, 0F6h, 064h, 086h, 068h, 098h, 016h, 0D4h, 0A4h, 05Ch, 0CCh, 05Dh, 065h, 0B6h, 092h
 	   68 98 16 D4 A4
 	   5C CC 5D 65 B6
 	   92
- 00000140  6C 70 48 50 FD			BYTE	06Ch, 070h, 048h, 050h, 0FDh, 0EDh, 0B9h, 0DAh, 05Eh, 015h, 046h, 057h, 0A7h, 08Dh, 09Dh, 084h
+ 00000150  6C 70 48 50 FD			BYTE	06Ch, 070h, 048h, 050h, 0FDh, 0EDh, 0B9h, 0DAh, 05Eh, 015h, 046h, 057h, 0A7h, 08Dh, 09Dh, 084h
 	   ED B9 DA 5E 15
 	   46 57 A7 8D 9D
 	   84
- 00000150  90 D8 AB 00 8C			BYTE	090h, 0D8h, 0ABh, 000h, 08Ch, 0BCh, 0D3h, 00Ah, 0F7h, 0E4h, 058h, 005h, 0B8h, 0B3h, 045h, 006h
+ 00000160  90 D8 AB 00 8C			BYTE	090h, 0D8h, 0ABh, 000h, 08Ch, 0BCh, 0D3h, 00Ah, 0F7h, 0E4h, 058h, 005h, 0B8h, 0B3h, 045h, 006h
 	   BC D3 0A F7 E4
 	   58 05 B8 B3 45
 	   06
- 00000160  D0 2C 1E 8F CA			BYTE	0D0h, 02Ch, 01Eh, 08Fh, 0CAh, 03Fh, 00Fh, 002h, 0C1h, 0AFh, 0BDh, 003h, 001h, 013h, 08Ah, 06Bh
+ 00000170  D0 2C 1E 8F CA			BYTE	0D0h, 02Ch, 01Eh, 08Fh, 0CAh, 03Fh, 00Fh, 002h, 0C1h, 0AFh, 0BDh, 003h, 001h, 013h, 08Ah, 06Bh
 	   3F 0F 02 C1 AF
 	   BD 03 01 13 8A
 	   6B
- 00000170  3A 91 11 41 4F			BYTE	03Ah, 091h, 011h, 041h, 04Fh, 067h, 0DCh, 0EAh, 097h, 0F2h, 0CFh, 0CEh, 0F0h, 0B4h, 0E6h, 073h
+ 00000180  3A 91 11 41 4F			BYTE	03Ah, 091h, 011h, 041h, 04Fh, 067h, 0DCh, 0EAh, 097h, 0F2h, 0CFh, 0CEh, 0F0h, 0B4h, 0E6h, 073h
 	   67 DC EA 97 F2
 	   CF CE F0 B4 E6
 	   73
- 00000180  96 AC 74 22 E7			BYTE	096h, 0ACh, 074h, 022h, 0E7h, 0ADh, 035h, 085h, 0E2h, 0F9h, 037h, 0E8h, 01Ch, 075h, 0DFh, 06Eh
+ 00000190  96 AC 74 22 E7			BYTE	096h, 0ACh, 074h, 022h, 0E7h, 0ADh, 035h, 085h, 0E2h, 0F9h, 037h, 0E8h, 01Ch, 075h, 0DFh, 06Eh
 	   AD 35 85 E2 F9
 	   37 E8 1C 75 DF
 	   6E
- 00000190  47 F1 1A 71 1D			BYTE	047h, 0F1h, 01Ah, 071h, 01Dh, 029h, 0C5h, 089h, 06Fh, 0B7h, 062h, 00Eh, 0AAh, 018h, 0BEh, 01Bh
+ 000001A0  47 F1 1A 71 1D			BYTE	047h, 0F1h, 01Ah, 071h, 01Dh, 029h, 0C5h, 089h, 06Fh, 0B7h, 062h, 00Eh, 0AAh, 018h, 0BEh, 01Bh
 	   29 C5 89 6F B7
 	   62 0E AA 18 BE
 	   1B
- 000001A0  FC 56 3E 4B C6			BYTE	0FCh, 056h, 03Eh, 04Bh, 0C6h, 0D2h, 079h, 020h, 09Ah, 0DBh, 0C0h, 0FEh, 078h, 0CDh, 05Ah, 0F4h
+ 000001B0  FC 56 3E 4B C6			BYTE	0FCh, 056h, 03Eh, 04Bh, 0C6h, 0D2h, 079h, 020h, 09Ah, 0DBh, 0C0h, 0FEh, 078h, 0CDh, 05Ah, 0F4h
 	   D2 79 20 9A DB
 	   C0 FE 78 CD 5A
 	   F4
- 000001B0  1F DD A8 33 88			BYTE	01Fh, 0DDh, 0A8h, 033h, 088h, 007h, 0C7h, 031h, 0B1h, 012h, 010h, 059h, 027h, 080h, 0ECh, 05Fh
+ 000001C0  1F DD A8 33 88			BYTE	01Fh, 0DDh, 0A8h, 033h, 088h, 007h, 0C7h, 031h, 0B1h, 012h, 010h, 059h, 027h, 080h, 0ECh, 05Fh
 	   07 C7 31 B1 12
 	   10 59 27 80 EC
 	   5F
- 000001C0  60 51 7F A9 19			BYTE	060h, 051h, 07Fh, 0A9h, 019h, 0B5h, 04Ah, 00Dh, 02Dh, 0E5h, 07Ah, 09Fh, 093h, 0C9h, 09Ch, 0EFh
+ 000001D0  60 51 7F A9 19			BYTE	060h, 051h, 07Fh, 0A9h, 019h, 0B5h, 04Ah, 00Dh, 02Dh, 0E5h, 07Ah, 09Fh, 093h, 0C9h, 09Ch, 0EFh
 	   B5 4A 0D 2D E5
 	   7A 9F 93 C9 9C
 	   EF
- 000001D0  A0 E0 3B 4D AE			BYTE	0A0h, 0E0h, 03Bh, 04Dh, 0AEh, 02Ah, 0F5h, 0B0h, 0C8h, 0EBh, 0BBh, 03Ch, 083h, 053h, 099h, 061h
+ 000001E0  A0 E0 3B 4D AE			BYTE	0A0h, 0E0h, 03Bh, 04Dh, 0AEh, 02Ah, 0F5h, 0B0h, 0C8h, 0EBh, 0BBh, 03Ch, 083h, 053h, 099h, 061h
 	   2A F5 B0 C8 EB
 	   BB 3C 83 53 99
 	   61
- 000001E0  17 2B 04 7E BA			BYTE	017h, 02Bh, 004h, 07Eh, 0BAh, 077h, 0D6h, 026h, 0E1h, 069h, 014h, 063h, 055h, 021h, 00Ch, 07Dh;E Lookup Tableetable	BYTE	001h, 003h, 005h, 00Fh, 011h, 033h, 055h, 0FFh, 01Ah, 02Eh, 072h, 096h, 0A1h, 0F8h, 013h, 035h
+ 000001F0  17 2B 04 7E BA			BYTE	017h, 02Bh, 004h, 07Eh, 0BAh, 077h, 0D6h, 026h, 0E1h, 069h, 014h, 063h, 055h, 021h, 00Ch, 07Dh
 	   77 D6 26 E1 69
 	   14 63 55 21 0C
 	   7D
- 000001F0  5F E1 38 48 D8			BYTE	05Fh, 0E1h, 038h, 048h, 0D8h, 073h, 095h, 0A4h, 0F7h, 002h, 006h, 00Ah, 01Eh, 022h, 066h, 0AAh
+				;E Lookup Table
+ 00000200 01 03 05 0F 11	etable	BYTE	001h, 003h, 005h, 00Fh, 011h, 033h, 055h, 0FFh, 01Ah, 02Eh, 072h, 096h, 0A1h, 0F8h, 013h, 035h
+	   33 55 FF 1A 2E
+	   72 96 A1 F8 13
+	   35
+ 00000210  5F E1 38 48 D8			BYTE	05Fh, 0E1h, 038h, 048h, 0D8h, 073h, 095h, 0A4h, 0F7h, 002h, 006h, 00Ah, 01Eh, 022h, 066h, 0AAh
 	   73 95 A4 F7 02
 	   06 0A 1E 22 66
 	   AA
- 00000200  E5 34 5C E4 37			BYTE	0E5h, 034h, 05Ch, 0E4h, 037h, 059h, 0EBh, 026h, 06Ah, 0BEh, 0D9h, 070h, 090h, 0ABh, 0E6h, 031h
+ 00000220  E5 34 5C E4 37			BYTE	0E5h, 034h, 05Ch, 0E4h, 037h, 059h, 0EBh, 026h, 06Ah, 0BEh, 0D9h, 070h, 090h, 0ABh, 0E6h, 031h
 	   59 EB 26 6A BE
 	   D9 70 90 AB E6
 	   31
- 00000210  53 F5 04 0C 14			BYTE	053h, 0F5h, 004h, 00Ch, 014h, 03Ch, 044h, 0CCh, 04Fh, 0D1h, 068h, 0B8h, 0D3h, 06Eh, 0B2h, 0CDh
+ 00000230  53 F5 04 0C 14			BYTE	053h, 0F5h, 004h, 00Ch, 014h, 03Ch, 044h, 0CCh, 04Fh, 0D1h, 068h, 0B8h, 0D3h, 06Eh, 0B2h, 0CDh
 	   3C 44 CC 4F D1
 	   68 B8 D3 6E B2
 	   CD
- 00000220  4C D4 67 A9 E0			BYTE	04Ch, 0D4h, 067h, 0A9h, 0E0h, 03Bh, 04Dh, 0D7h, 062h, 0A6h, 0F1h, 008h, 018h, 028h, 078h, 088h
+ 00000240  4C D4 67 A9 E0			BYTE	04Ch, 0D4h, 067h, 0A9h, 0E0h, 03Bh, 04Dh, 0D7h, 062h, 0A6h, 0F1h, 008h, 018h, 028h, 078h, 088h
 	   3B 4D D7 62 A6
 	   F1 08 18 28 78
 	   88
- 00000230  83 9E B9 D0 6B			BYTE	083h, 09Eh, 0B9h, 0D0h, 06Bh, 0BDh, 0DCh, 07Fh, 081h, 098h, 0B3h, 0CEh, 049h, 0DBh, 076h, 09Ah
+ 00000250  83 9E B9 D0 6B			BYTE	083h, 09Eh, 0B9h, 0D0h, 06Bh, 0BDh, 0DCh, 07Fh, 081h, 098h, 0B3h, 0CEh, 049h, 0DBh, 076h, 09Ah
 	   BD DC 7F 81 98
 	   B3 CE 49 DB 76
 	   9A
- 00000240  B5 C4 57 F9 10			BYTE	0B5h, 0C4h, 057h, 0F9h, 010h, 030h, 050h, 0F0h, 00Bh, 01Dh, 027h, 069h, 0BBh, 0D6h, 061h, 0A3h
+ 00000260  B5 C4 57 F9 10			BYTE	0B5h, 0C4h, 057h, 0F9h, 010h, 030h, 050h, 0F0h, 00Bh, 01Dh, 027h, 069h, 0BBh, 0D6h, 061h, 0A3h
 	   30 50 F0 0B 1D
 	   27 69 BB D6 61
 	   A3
- 00000250  FE 19 2B 7D 87			BYTE	0FEh, 019h, 02Bh, 07Dh, 087h, 092h, 0ADh, 0ECh, 02Fh, 071h, 093h, 0AEh, 0E9h, 020h, 060h, 0A0h
+ 00000270  FE 19 2B 7D 87			BYTE	0FEh, 019h, 02Bh, 07Dh, 087h, 092h, 0ADh, 0ECh, 02Fh, 071h, 093h, 0AEh, 0E9h, 020h, 060h, 0A0h
 	   92 AD EC 2F 71
 	   93 AE E9 20 60
 	   A0
- 00000260  FB 16 3A 4E D2			BYTE	0FBh, 016h, 03Ah, 04Eh, 0D2h, 06Dh, 0B7h, 0C2h, 05Dh, 0E7h, 032h, 056h, 0FAh, 015h, 03Fh, 041h
+ 00000280  FB 16 3A 4E D2			BYTE	0FBh, 016h, 03Ah, 04Eh, 0D2h, 06Dh, 0B7h, 0C2h, 05Dh, 0E7h, 032h, 056h, 0FAh, 015h, 03Fh, 041h
 	   6D B7 C2 5D E7
 	   32 56 FA 15 3F
 	   41
- 00000270  C3 5E E2 3D 47			BYTE	0C3h, 05Eh, 0E2h, 03Dh, 047h, 0C9h, 040h, 0C0h, 05Bh, 0EDh, 02Ch, 074h, 09Ch, 0BFh, 0DAh, 075h
+ 00000290  C3 5E E2 3D 47			BYTE	0C3h, 05Eh, 0E2h, 03Dh, 047h, 0C9h, 040h, 0C0h, 05Bh, 0EDh, 02Ch, 074h, 09Ch, 0BFh, 0DAh, 075h
 	   C9 40 C0 5B ED
 	   2C 74 9C BF DA
 	   75
- 00000280  9F BA D5 64 AC			BYTE	09Fh, 0BAh, 0D5h, 064h, 0ACh, 0EFh, 02Ah, 07Eh, 082h, 09Dh, 0BCh, 0DFh, 07Ah, 08Eh, 089h, 080h
+ 000002A0  9F BA D5 64 AC			BYTE	09Fh, 0BAh, 0D5h, 064h, 0ACh, 0EFh, 02Ah, 07Eh, 082h, 09Dh, 0BCh, 0DFh, 07Ah, 08Eh, 089h, 080h
 	   EF 2A 7E 82 9D
 	   BC DF 7A 8E 89
 	   80
- 00000290  9B B6 C1 58 E8			BYTE	09Bh, 0B6h, 0C1h, 058h, 0E8h, 023h, 065h, 0AFh, 0EAh, 025h, 06Fh, 0B1h, 0C8h, 043h, 0C5h, 054h
+ 000002B0  9B B6 C1 58 E8			BYTE	09Bh, 0B6h, 0C1h, 058h, 0E8h, 023h, 065h, 0AFh, 0EAh, 025h, 06Fh, 0B1h, 0C8h, 043h, 0C5h, 054h
 	   23 65 AF EA 25
 	   6F B1 C8 43 C5
 	   54
- 000002A0  FC 1F 21 63 A5			BYTE	0FCh, 01Fh, 021h, 063h, 0A5h, 0F4h, 007h, 009h, 01Bh, 02Dh, 077h, 099h, 0B0h, 0CBh, 046h, 0CAh
+ 000002C0  FC 1F 21 63 A5			BYTE	0FCh, 01Fh, 021h, 063h, 0A5h, 0F4h, 007h, 009h, 01Bh, 02Dh, 077h, 099h, 0B0h, 0CBh, 046h, 0CAh
 	   F4 07 09 1B 2D
 	   77 99 B0 CB 46
 	   CA
- 000002B0  45 CF 4A DE 79			BYTE	045h, 0CFh, 04Ah, 0DEh, 079h, 08Bh, 086h, 091h, 0A8h, 0E3h, 03Eh, 042h, 0C6h, 051h, 0F3h, 00Eh
+ 000002D0  45 CF 4A DE 79			BYTE	045h, 0CFh, 04Ah, 0DEh, 079h, 08Bh, 086h, 091h, 0A8h, 0E3h, 03Eh, 042h, 0C6h, 051h, 0F3h, 00Eh
 	   8B 86 91 A8 E3
 	   3E 42 C6 51 F3
 	   0E
- 000002C0  12 36 5A EE 29			BYTE	012h, 036h, 05Ah, 0EEh, 029h, 07Bh, 08Dh, 08Ch, 08Fh, 08Ah, 085h, 094h, 0A7h, 0F2h, 00Dh, 017h
+ 000002E0  12 36 5A EE 29			BYTE	012h, 036h, 05Ah, 0EEh, 029h, 07Bh, 08Dh, 08Ch, 08Fh, 08Ah, 085h, 094h, 0A7h, 0F2h, 00Dh, 017h
 	   7B 8D 8C 8F 8A
 	   85 94 A7 F2 0D
 	   17
- 000002D0  39 4B DD 7C 84			BYTE	039h, 04Bh, 0DDh, 07Ch, 084h, 097h, 0A2h, 0FDh, 01Ch, 024h, 06Ch, 0B4h, 0C7h, 052h, 0F6h, 001h;L Lookup Table
+ 000002F0  39 4B DD 7C 84			BYTE	039h, 04Bh, 0DDh, 07Ch, 084h, 097h, 0A2h, 0FDh, 01Ch, 024h, 06Ch, 0B4h, 0C7h, 052h, 0F6h, 001h
 	   97 A2 FD 1C 24
 	   6C B4 C7 52 F6
 	   01
- 000002E0 00 00 19 01 32	ltable	BYTE	000h, 000h, 019h, 001h, 032h, 002h, 01Ah, 0C6h, 04Bh, 0C7h, 01Bh, 068h, 033h, 0EEh, 0DFh, 003h
+				;L Lookup Table
+ 00000300 00 00 19 01 32	ltable	BYTE	000h, 000h, 019h, 001h, 032h, 002h, 01Ah, 0C6h, 04Bh, 0C7h, 01Bh, 068h, 033h, 0EEh, 0DFh, 003h
 	   02 1A C6 4B C7
 	   1B 68 33 EE DF
 	   03
- 000002F0  64 04 E0 0E 34			BYTE	064h, 004h, 0E0h, 00Eh, 034h, 08Dh, 081h, 0EFh, 04Ch, 071h, 008h, 0C8h, 0F8h, 069h, 01Ch, 0C1h
+ 00000310  64 04 E0 0E 34			BYTE	064h, 004h, 0E0h, 00Eh, 034h, 08Dh, 081h, 0EFh, 04Ch, 071h, 008h, 0C8h, 0F8h, 069h, 01Ch, 0C1h
 	   8D 81 EF 4C 71
 	   08 C8 F8 69 1C
 	   C1
- 00000300  7D C2 1D B5 F9			BYTE	07Dh, 0C2h, 01Dh, 0B5h, 0F9h, 0B9h, 027h, 06Ah, 04Dh, 0E4h, 0A6h, 072h, 09Ah, 0C9h, 009h, 078h
+ 00000320  7D C2 1D B5 F9			BYTE	07Dh, 0C2h, 01Dh, 0B5h, 0F9h, 0B9h, 027h, 06Ah, 04Dh, 0E4h, 0A6h, 072h, 09Ah, 0C9h, 009h, 078h
 	   B9 27 6A 4D E4
 	   A6 72 9A C9 09
 	   78
- 00000310  65 2F 8A 05 21			BYTE	065h, 02Fh, 08Ah, 005h, 021h, 00Fh, 0E1h, 024h, 012h, 0F0h, 082h, 045h, 035h, 093h, 0DAh, 08Eh
+ 00000330  65 2F 8A 05 21			BYTE	065h, 02Fh, 08Ah, 005h, 021h, 00Fh, 0E1h, 024h, 012h, 0F0h, 082h, 045h, 035h, 093h, 0DAh, 08Eh
 	   0F E1 24 12 F0
 	   82 45 35 93 DA
 	   8E
- 00000320  96 8F DB BD 36			BYTE	096h, 08Fh, 0DBh, 0BDh, 036h, 0D0h, 0CEh, 094h, 013h, 05Ch, 0D2h, 0F1h, 040h, 046h, 083h, 038h
+ 00000340  96 8F DB BD 36			BYTE	096h, 08Fh, 0DBh, 0BDh, 036h, 0D0h, 0CEh, 094h, 013h, 05Ch, 0D2h, 0F1h, 040h, 046h, 083h, 038h
 	   D0 CE 94 13 5C
 	   D2 F1 40 46 83
 	   38
- 00000330  66 DD FD 30 BF			BYTE	066h, 0DDh, 0FDh, 030h, 0BFh, 006h, 08Bh, 062h, 0B3h, 025h, 0E2h, 098h, 022h, 088h, 091h, 010h
+ 00000350  66 DD FD 30 BF			BYTE	066h, 0DDh, 0FDh, 030h, 0BFh, 006h, 08Bh, 062h, 0B3h, 025h, 0E2h, 098h, 022h, 088h, 091h, 010h
 	   06 8B 62 B3 25
 	   E2 98 22 88 91
 	   10
- 00000340  7E 6E 48 C3 A3			BYTE	07Eh, 06Eh, 048h, 0C3h, 0A3h, 0B6h, 01Eh, 042h, 03Ah, 06Bh, 028h, 054h, 0FAh, 085h, 03Dh, 0BAh
+ 00000360  7E 6E 48 C3 A3			BYTE	07Eh, 06Eh, 048h, 0C3h, 0A3h, 0B6h, 01Eh, 042h, 03Ah, 06Bh, 028h, 054h, 0FAh, 085h, 03Dh, 0BAh
 	   B6 1E 42 3A 6B
 	   28 54 FA 85 3D
 	   BA
- 00000350  2B 79 0A 15 9B			BYTE	02Bh, 079h, 00Ah, 015h, 09Bh, 09Fh, 05Eh, 0CAh, 04Eh, 0D4h, 0ACh, 0E5h, 0F3h, 073h, 0A7h, 057h
+ 00000370  2B 79 0A 15 9B			BYTE	02Bh, 079h, 00Ah, 015h, 09Bh, 09Fh, 05Eh, 0CAh, 04Eh, 0D4h, 0ACh, 0E5h, 0F3h, 073h, 0A7h, 057h
 	   9F 5E CA 4E D4
 	   AC E5 F3 73 A7
 	   57
- 00000360  AF 58 A8 50 F4			BYTE	0AFh, 058h, 0A8h, 050h, 0F4h, 0EAh, 0D6h, 074h, 04Fh, 0AEh, 0E9h, 0D5h, 0E7h, 0E6h, 0ADh, 0E8h
+ 00000380  AF 58 A8 50 F4			BYTE	0AFh, 058h, 0A8h, 050h, 0F4h, 0EAh, 0D6h, 074h, 04Fh, 0AEh, 0E9h, 0D5h, 0E7h, 0E6h, 0ADh, 0E8h
 	   EA D6 74 4F AE
 	   E9 D5 E7 E6 AD
 	   E8
- 00000370  2C D7 75 7A EB			BYTE	02Ch, 0D7h, 075h, 07Ah, 0EBh, 016h, 00Bh, 0F5h, 059h, 0CBh, 05Fh, 0B0h, 09Ch, 0A9h, 051h, 0A0h
+ 00000390  2C D7 75 7A EB			BYTE	02Ch, 0D7h, 075h, 07Ah, 0EBh, 016h, 00Bh, 0F5h, 059h, 0CBh, 05Fh, 0B0h, 09Ch, 0A9h, 051h, 0A0h
 	   16 0B F5 59 CB
 	   5F B0 9C A9 51
 	   A0
- 00000380  7F 0C F6 6F 17			BYTE	07Fh, 00Ch, 0F6h, 06Fh, 017h, 0C4h, 049h, 0ECh, 0D8h, 043h, 01Fh, 02Dh, 0A4h, 076h, 07Bh, 0B7h
+ 000003A0  7F 0C F6 6F 17			BYTE	07Fh, 00Ch, 0F6h, 06Fh, 017h, 0C4h, 049h, 0ECh, 0D8h, 043h, 01Fh, 02Dh, 0A4h, 076h, 07Bh, 0B7h
 	   C4 49 EC D8 43
 	   1F 2D A4 76 7B
 	   B7
- 00000390  CC BB 3E 5A FB			BYTE	0CCh, 0BBh, 03Eh, 05Ah, 0FBh, 060h, 0B1h, 086h, 03Bh, 052h, 0A1h, 06Ch, 0AAh, 055h, 029h, 09Dh
+ 000003B0  CC BB 3E 5A FB			BYTE	0CCh, 0BBh, 03Eh, 05Ah, 0FBh, 060h, 0B1h, 086h, 03Bh, 052h, 0A1h, 06Ch, 0AAh, 055h, 029h, 09Dh
 	   60 B1 86 3B 52
 	   A1 6C AA 55 29
 	   9D
- 000003A0  97 B2 87 90 61			BYTE	097h, 0B2h, 087h, 090h, 061h, 0BEh, 0DCh, 0FCh, 0BCh, 095h, 0CFh, 0CDh, 037h, 03Fh, 05Bh, 0D1h
+ 000003C0  97 B2 87 90 61			BYTE	097h, 0B2h, 087h, 090h, 061h, 0BEh, 0DCh, 0FCh, 0BCh, 095h, 0CFh, 0CDh, 037h, 03Fh, 05Bh, 0D1h
 	   BE DC FC BC 95
 	   CF CD 37 3F 5B
 	   D1
- 000003B0  53 39 84 3C 41			BYTE	053h, 039h, 084h, 03Ch, 041h, 0A2h, 06Dh, 047h, 014h, 02Ah, 09Eh, 05Dh, 056h, 0F2h, 0D3h, 0ABh
+ 000003D0  53 39 84 3C 41			BYTE	053h, 039h, 084h, 03Ch, 041h, 0A2h, 06Dh, 047h, 014h, 02Ah, 09Eh, 05Dh, 056h, 0F2h, 0D3h, 0ABh
 	   A2 6D 47 14 2A
 	   9E 5D 56 F2 D3
 	   AB
- 000003C0  44 11 92 D9 23			BYTE	044h, 011h, 092h, 0D9h, 023h, 020h, 02Eh, 089h, 0B4h, 07Ch, 0B8h, 026h, 077h, 099h, 0E3h, 0A5h
+ 000003E0  44 11 92 D9 23			BYTE	044h, 011h, 092h, 0D9h, 023h, 020h, 02Eh, 089h, 0B4h, 07Ch, 0B8h, 026h, 077h, 099h, 0E3h, 0A5h
 	   20 2E 89 B4 7C
 	   B8 26 77 99 E3
 	   A5
- 000003D0  67 4A ED DE C5			BYTE	067h, 04Ah, 0EDh, 0DEh, 0C5h, 031h, 0FEh, 018h, 00Dh, 063h, 08Ch, 080h, 0C0h, 0F7h, 070h, 007h
+ 000003F0  67 4A ED DE C5			BYTE	067h, 04Ah, 0EDh, 0DEh, 0C5h, 031h, 0FEh, 018h, 00Dh, 063h, 08Ch, 080h, 0C0h, 0F7h, 070h, 007h
 	   31 FE 18 0D 63
 	   8C 80 C0 F7 70
 	   07
 
- 000003E0 AF					State BYTE 10101111b
+ 00000400 00 01 02 03 04	State BYTE 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+	   05 06 07 08 09
+	   0A 0B 0C 0D 0E
+	   0F
+ 00000410 02 03 01 01		matrix BYTE 2,3,1,1
+ 00000414 00			zero BYTE 0
  00000000			.code
- 00000000			main PROC
 
 
+				;----------------------------
+ 00000000			pShiftRow PROC
+				; Requires = Nothing
+				;----------------------------
+				mSwap State[1], State[5]
+ 00000000  50		     1		push eax
+ 00000001  A0 00000401 R     1		mov al, State[1]
+ 00000006  8A 25 00000405 R  1		mov ah, State[5]
+ 0000000C  88 25 00000401 R  1		mov State[1], ah
+ 00000012  A2 00000405 R     1		mov State[5], al
+ 00000017  58		     1		pop eax
+				mSwap State[5], State[9]
+ 00000018  50		     1		push eax
+ 00000019  A0 00000405 R     1		mov al, State[5]
+ 0000001E  8A 25 00000409 R  1		mov ah, State[9]
+ 00000024  88 25 00000405 R  1		mov State[5], ah
+ 0000002A  A2 00000409 R     1		mov State[9], al
+ 0000002F  58		     1		pop eax
+				mSwap State[9], State[13]
+ 00000030  50		     1		push eax
+ 00000031  A0 00000409 R     1		mov al, State[9]
+ 00000036  8A 25 0000040D R  1		mov ah, State[13]
+ 0000003C  88 25 00000409 R  1		mov State[9], ah
+ 00000042  A2 0000040D R     1		mov State[13], al
+ 00000047  58		     1		pop eax
 
- 00000000  A0 000003E0 R		mov al, State;[ecx] ; lower nibble
- 00000005  8A 25 000003E0 R		mov ah, State;[ecx] ; upper nibble
+				mSwap State[2], State[10]
+ 00000048  50		     1		push eax
+ 00000049  A0 00000402 R     1		mov al, State[2]
+ 0000004E  8A 25 0000040A R  1		mov ah, State[10]
+ 00000054  88 25 00000402 R  1		mov State[2], ah
+ 0000005A  A2 0000040A R     1		mov State[10], al
+ 0000005F  58		     1		pop eax
+				mSwap State[6], State[14]
+ 00000060  50		     1		push eax
+ 00000061  A0 00000406 R     1		mov al, State[6]
+ 00000066  8A 25 0000040E R  1		mov ah, State[14]
+ 0000006C  88 25 00000406 R  1		mov State[6], ah
+ 00000072  A2 0000040E R     1		mov State[14], al
+ 00000077  58		     1		pop eax
 
- 0000000B  24 0F			and al, 00001111b
- 0000000D  80 E4 F0			and ah, 11110000b
+				mSwap State[15], State[11]
+ 00000078  50		     1		push eax
+ 00000079  A0 0000040F R     1		mov al, State[15]
+ 0000007E  8A 25 0000040B R  1		mov ah, State[11]
+ 00000084  88 25 0000040F R  1		mov State[15], ah
+ 0000008A  A2 0000040B R     1		mov State[11], al
+ 0000008F  58		     1		pop eax
+				mSwap State[11], State[7]
+ 00000090  50		     1		push eax
+ 00000091  A0 0000040B R     1		mov al, State[11]
+ 00000096  8A 25 00000407 R  1		mov ah, State[7]
+ 0000009C  88 25 0000040B R  1		mov State[11], ah
+ 000000A2  A2 00000407 R     1		mov State[7], al
+ 000000A7  58		     1		pop eax
+				mSwap State[7], State[3]
+ 000000A8  50		     1		push eax
+ 000000A9  A0 00000407 R     1		mov al, State[7]
+ 000000AE  8A 25 00000403 R  1		mov ah, State[3]
+ 000000B4  88 25 00000407 R  1		mov State[7], ah
+ 000000BA  A2 00000403 R     1		mov State[3], al
+ 000000BF  58		     1		pop eax
 
- 00000010  C0 EC 04			shr ah, 4
+ 000000C0  C3			 ret
+ 000000C1			pShiftRow ENDP
 
- 00000013  8A D8			mov bl, al
- 00000015  8A FC			mov bh, ah
- 00000017  0F B6 C7			movzx eax, bh
-					mul 16
-AddTwo.asm(133) : error A2001:immediate operand not allowed
 
-					add eax, bl
-AddTwo.asm(135) : error A2070:invalid instruction operands
+				;---------------------------
+ 000000C1			pMixCol PROC
+				;
+				;---------------------------
+
+
+ 000000C1  C3			ret
+ 000000C2			pMixCol ENDP
+
+ 000000C2			main PROC
+					;mByteSub State
+					;invoke pShiftRow
+ 000000C2  B8 00000000			mov eax, 0
+
+
+ 000000C7  A0 00000400 R		mov al, State[0]
+ 000000CC  F6 25 00000410 R		mul matrix[0]
+
+ 000000D2  8A D0			mov dl, al
+
+ 000000D4  A0 00000401 R		mov al, State[1]
+ 000000D9  F6 25 00000411 R		mul matrix[1]
+
+ 000000DF  8A F0			mov dh, al
+
+ 000000E1  A0 00000402 R		mov al, State[2]
+ 000000E6  F6 25 00000412 R		mul matrix[2]
+
+ 000000EC  8A D8			mov bl, al
+
+ 000000EE  A0 00000403 R		mov al, State[3]
+ 000000F3  F6 25 00000413 R		mul matrix[3]
+
+ 000000F9  8A F8			mov bh, al
+
+ 000000FB  32 D6			xor dl, dh
+ 000000FD  32 D3			xor dl, bl
+ 000000FF  32 D7			xor dl, bh
+
+ 00000101  88 15 00000400 R		mov State[0], dl
+
+					
+
 
 					exit
- 0000001A  6A 00	   *	    push   +000000000h
- 0000001C  E8 00000000 E   *	    call   ExitProcess
- 00000021			main ENDP
+ 00000107  6A 00	   *	    push   +000000000h
+ 00000109  E8 00000000 E   *	    call   ExitProcess
+ 0000010E			main ENDP
+
+
+
+
 				END main
-Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/01/15 16:41:19
-MASM Template 0(main.asm				     Symbols 2 - 1
+Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/03/15 16:32:16
+AddTwo.asm						     Symbols 2 - 1
 
 
 
@@ -360,6 +497,7 @@ Macros:
 
 mAddRoundKey . . . . . . . . . .	Proc
 mByteSub . . . . . . . . . . . .	Proc
+mSwap  . . . . . . . . . . . . .	Proc
 
 
 Structures and Unions:
@@ -450,8 +588,8 @@ Segments and Groups:
 
 FLAT . . . . . . . . . . . . . .	GROUP
 STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
-_DATA  . . . . . . . . . . . . .	32 Bit	 000003E1 Para	  Public  'DATA'	
-_TEXT  . . . . . . . . . . . . .	32 Bit	 00000021 Para	  Public  'CODE'	
+_DATA  . . . . . . . . . . . . .	32 Bit	 00000415 Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 0000010E Para	  Public  'CODE'	
 
 
 Procedures, parameters, and locals:
@@ -558,7 +696,9 @@ WriteStackFrame  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 WriteString  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteToFile  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteWindowsMsg  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-main . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 00000021 Public STDCALL
+main . . . . . . . . . . . . . .	P Near	 000000C2 _TEXT	Length= 0000004C Public STDCALL
+pMixCol  . . . . . . . . . . . .	P Near	 000000C1 _TEXT	Length= 00000001 Public STDCALL
+pShiftRow  . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 000000C1 Public STDCALL
 printf . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
 scanf  . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
 wsprintfA  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
@@ -693,7 +833,7 @@ STD_ERROR_HANDLE . . . . . . . .	Number	 -0000000Ch
 STD_INPUT_HANDLE . . . . . . . .	Number	 -0000000Ah   
 STD_OUTPUT_HANDLE  . . . . . . .	Number	 -0000000Bh   
 SetConsoleTitle  . . . . . . . .	Text   	 SetConsoleTitleA
-State  . . . . . . . . . . . . .	Byte	 000003E0 _DATA	
+State  . . . . . . . . . . . . .	Byte	 00000400 _DATA	
 TAB  . . . . . . . . . . . . . .	Number	 00000009h   
 TRUE . . . . . . . . . . . . . .	Number	 00000001h   
 TRUNCATE_EXISTING  . . . . . . .	Number	 00000005h   
@@ -782,6 +922,7 @@ black  . . . . . . . . . . . . .	Number	 00000000h
 blue . . . . . . . . . . . . . .	Number	 00000001h   
 brown  . . . . . . . . . . . . .	Number	 00000006h   
 cyan . . . . . . . . . . . . . .	Number	 00000003h   
+etable . . . . . . . . . . . . .	Byte	 00000200 _DATA	
 exit . . . . . . . . . . . . . .	Text   	 INVOKE ExitProcess,0
 gray . . . . . . . . . . . . . .	Number	 00000008h   
 green  . . . . . . . . . . . . .	Number	 00000002h   
@@ -791,13 +932,16 @@ lightGray  . . . . . . . . . . .	Number	 00000007h
 lightGreen . . . . . . . . . . .	Number	 0000000Ah   
 lightMagenta . . . . . . . . . .	Number	 0000000Dh   
 lightRed . . . . . . . . . . . .	Number	 0000000Ch   
-ltable . . . . . . . . . . . . .	Byte	 000002E0 _DATA	
+ltable . . . . . . . . . . . . .	Byte	 00000300 _DATA	
 magenta  . . . . . . . . . . . .	Number	 00000005h   
+matrix . . . . . . . . . . . . .	Byte	 00000410 _DATA	
 red  . . . . . . . . . . . . . .	Number	 00000004h   
+sboxinv  . . . . . . . . . . . .	Byte	 00000100 _DATA	
 sbox . . . . . . . . . . . . . .	Byte	 00000000 _DATA	
 white  . . . . . . . . . . . . .	Number	 0000000Fh   
 wsprintf . . . . . . . . . . . .	Text   	 wsprintfA
 yellow . . . . . . . . . . . . .	Number	 0000000Eh   
+zero . . . . . . . . . . . . . .	Byte	 00000414 _DATA	
 
 	   0 Warnings
-	   2 Errors
+	   0 Errors

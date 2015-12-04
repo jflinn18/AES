@@ -1,4 +1,3 @@
-TITLE MASM Template 0(main.asm)
 
 ; Program Desription:
 ; Author:
@@ -34,27 +33,51 @@ mByteSub MACRO State:REQ
 	mov ecx, 16
 
 L2:
-	mov al, State;[ecx] ; lower nibble
-	mov ah, State;[ecx] ; upper nibble
+	mov eax, 0
 
-	and al, 00001111b
-	and ah, 11110000b
+	mov al, State[ecx-1]; lower nibble
+			;mov ah, State; upper nibble
 
-	shr ah, 4
+			;and al, 00001111b
+			;and ah, 11110000b
+			;shr ah, 4
+
+			;push eax
+			;mov ebx, 0
+
+			;mov bl, al
+			;mov bh, ah
+			;movzx eax, bh
+			;imul eax, 16
+
+			;mov bh, 0
+			;add eax, ebx
+
+			;pop eax
+
+	mov esi, OFFSET sbox
+	add esi, eax
+	mov bl, BYTE PTR [esi]
+	mov State[ecx-1], bl
+
+	loop L2
+
+ENDM
+
+mSwap MACRO y:REQ, x:REQ
 	push eax
-
-	mov bl, al
-	mov bh, ah
-	movzx eax, bh
-	mul 16
-
-	add eax, bl
-
+	mov al, y
+	mov ah, x
+	mov y, ah
+	mov x, al
 	pop eax
+ENDM
 
-	mov bh, sbox[bl]
+mShiftMatrix MACRO
 
-	loop L1
+	mSwap matrix[2], matrix[3]
+	mSwap matrix[1], matrix[2]
+	mSwap matrix[0], matrix[1]
 
 ENDM
 
@@ -75,7 +98,9 @@ sbox	BYTE	063h, 07Ch, 077h, 07Bh, 0F2h, 06Bh, 06Fh, 0C5h, 030h, 001h, 067h, 02Bh
 		BYTE	0BAh, 078h, 025h, 02Eh, 01Ch, 0A6h, 0B4h, 0C6h, 0E8h, 0DDh, 074h, 01Fh, 04Bh, 0BDh, 08Bh, 08Ah
 		BYTE	070h, 03Eh, 0B5h, 066h, 048h, 003h, 0F6h, 00Eh, 061h, 035h, 057h, 0B9h, 086h, 0C1h, 01Dh, 09Eh
 		BYTE	0E1h, 0F8h, 098h, 011h, 069h, 0D9h, 08Eh, 094h, 09Bh, 01Eh, 087h, 0E9h, 0CEh, 055h, 028h, 0DFh
-		BYTE	08Ch, 0A1h, 089h, 00Dh, 0BFh, 0E6h, 042h, 068h, 041h, 099h, 02Dh, 00Fh, 0B0h, 054h, 0BBh, 016h; S-Box Inverse Lookup Tablesboxinv	BYTE	052h, 009h, 06Ah, 0D5h, 030h, 036h, 0A5h, 038h, 0BFh, 040h, 0A3h, 09Eh, 081h, 0F3h, 0D7h, 0FBh
+		BYTE	08Ch, 0A1h, 089h, 00Dh, 0BFh, 0E6h, 042h, 068h, 041h, 099h, 02Dh, 00Fh, 0B0h, 054h, 0BBh, 016h
+; S-Box Inverse Lookup Table
+sboxinv	BYTE	052h, 009h, 06Ah, 0D5h, 030h, 036h, 0A5h, 038h, 0BFh, 040h, 0A3h, 09Eh, 081h, 0F3h, 0D7h, 0FBh
 		BYTE	07Ch, 0E3h, 039h, 082h, 09Bh, 02Fh, 0FFh, 087h, 034h, 08Eh, 043h, 044h, 0C4h, 0DEh, 0E9h, 0CBh
 		BYTE	054h, 07Bh, 094h, 032h, 0A6h, 0C2h, 023h, 03Dh, 0EEh, 04Ch, 095h, 00Bh, 042h, 0FAh, 0C3h, 04Eh
 		BYTE	008h, 02Eh, 0A1h, 066h, 028h, 0D9h, 024h, 0B2h, 076h, 05Bh, 0A2h, 049h, 06Dh, 08Bh, 0D1h, 025h
@@ -90,7 +115,9 @@ sbox	BYTE	063h, 07Ch, 077h, 07Bh, 0F2h, 06Bh, 06Fh, 0C5h, 030h, 001h, 067h, 02Bh
 		BYTE	01Fh, 0DDh, 0A8h, 033h, 088h, 007h, 0C7h, 031h, 0B1h, 012h, 010h, 059h, 027h, 080h, 0ECh, 05Fh
 		BYTE	060h, 051h, 07Fh, 0A9h, 019h, 0B5h, 04Ah, 00Dh, 02Dh, 0E5h, 07Ah, 09Fh, 093h, 0C9h, 09Ch, 0EFh
 		BYTE	0A0h, 0E0h, 03Bh, 04Dh, 0AEh, 02Ah, 0F5h, 0B0h, 0C8h, 0EBh, 0BBh, 03Ch, 083h, 053h, 099h, 061h
-		BYTE	017h, 02Bh, 004h, 07Eh, 0BAh, 077h, 0D6h, 026h, 0E1h, 069h, 014h, 063h, 055h, 021h, 00Ch, 07Dh;E Lookup Tableetable	BYTE	001h, 003h, 005h, 00Fh, 011h, 033h, 055h, 0FFh, 01Ah, 02Eh, 072h, 096h, 0A1h, 0F8h, 013h, 035h
+		BYTE	017h, 02Bh, 004h, 07Eh, 0BAh, 077h, 0D6h, 026h, 0E1h, 069h, 014h, 063h, 055h, 021h, 00Ch, 07Dh
+;E Lookup Table
+etable	BYTE	001h, 003h, 005h, 00Fh, 011h, 033h, 055h, 0FFh, 01Ah, 02Eh, 072h, 096h, 0A1h, 0F8h, 013h, 035h
 		BYTE	05Fh, 0E1h, 038h, 048h, 0D8h, 073h, 095h, 0A4h, 0F7h, 002h, 006h, 00Ah, 01Eh, 022h, 066h, 0AAh
 		BYTE	0E5h, 034h, 05Ch, 0E4h, 037h, 059h, 0EBh, 026h, 06Ah, 0BEh, 0D9h, 070h, 090h, 0ABh, 0E6h, 031h
 		BYTE	053h, 0F5h, 004h, 00Ch, 014h, 03Ch, 044h, 0CCh, 04Fh, 0D1h, 068h, 0B8h, 0D3h, 06Eh, 0B2h, 0CDh
@@ -105,7 +132,8 @@ sbox	BYTE	063h, 07Ch, 077h, 07Bh, 0F2h, 06Bh, 06Fh, 0C5h, 030h, 001h, 067h, 02Bh
 		BYTE	0FCh, 01Fh, 021h, 063h, 0A5h, 0F4h, 007h, 009h, 01Bh, 02Dh, 077h, 099h, 0B0h, 0CBh, 046h, 0CAh
 		BYTE	045h, 0CFh, 04Ah, 0DEh, 079h, 08Bh, 086h, 091h, 0A8h, 0E3h, 03Eh, 042h, 0C6h, 051h, 0F3h, 00Eh
 		BYTE	012h, 036h, 05Ah, 0EEh, 029h, 07Bh, 08Dh, 08Ch, 08Fh, 08Ah, 085h, 094h, 0A7h, 0F2h, 00Dh, 017h
-		BYTE	039h, 04Bh, 0DDh, 07Ch, 084h, 097h, 0A2h, 0FDh, 01Ch, 024h, 06Ch, 0B4h, 0C7h, 052h, 0F6h, 001h;L Lookup Table
+		BYTE	039h, 04Bh, 0DDh, 07Ch, 084h, 097h, 0A2h, 0FDh, 01Ch, 024h, 06Ch, 0B4h, 0C7h, 052h, 0F6h, 001h
+;L Lookup Table
 ltable	BYTE	000h, 000h, 019h, 001h, 032h, 002h, 01Ah, 0C6h, 04Bh, 0C7h, 01Bh, 068h, 033h, 0EEh, 0DFh, 003h
 		BYTE	064h, 004h, 0E0h, 00Eh, 034h, 08Dh, 081h, 0EFh, 04Ch, 071h, 008h, 0C8h, 0F8h, 069h, 01Ch, 0C1h
 		BYTE	07Dh, 0C2h, 01Dh, 0B5h, 0F9h, 0B9h, 027h, 06Ah, 04Dh, 0E4h, 0A6h, 072h, 09Ah, 0C9h, 009h, 078h
@@ -122,9 +150,93 @@ ltable	BYTE	000h, 000h, 019h, 001h, 032h, 002h, 01Ah, 0C6h, 04Bh, 0C7h, 01Bh, 06
 		BYTE	053h, 039h, 084h, 03Ch, 041h, 0A2h, 06Dh, 047h, 014h, 02Ah, 09Eh, 05Dh, 056h, 0F2h, 0D3h, 0ABh
 		BYTE	044h, 011h, 092h, 0D9h, 023h, 020h, 02Eh, 089h, 0B4h, 07Ch, 0B8h, 026h, 077h, 099h, 0E3h, 0A5h
 		BYTE	067h, 04Ah, 0EDh, 0DEh, 0C5h, 031h, 0FEh, 018h, 00Dh, 063h, 08Ch, 080h, 0C0h, 0F7h, 070h, 007h
+
+State BYTE 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+temp BYTE 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+matrix BYTE 2,3,1,1
+zero BYTE 0
 .code
+
+
+;----------------------------
+pShiftRow PROC
+; Requires = Nothing
+;----------------------------
+mSwap State[1], State[5]
+mSwap State[5], State[9]
+mSwap State[9], State[13]
+
+mSwap State[2], State[10]
+mSwap State[6], State[14]
+
+mSwap State[15], State[11]
+mSwap State[11], State[7]
+mSwap State[7], State[3]
+
+ ret
+pShiftRow ENDP
+
+
+;---------------------------
+pMixCol PROC
+;
+;---------------------------
+
+
+ret
+pMixCol ENDP
+
 main PROC
+	;mByteSub State
+	;invoke pShiftRow
+	
+	; We are working on Mix Column See the paper thingy url.
+	mov eax, 0
+
+
+	mov ecx, 16
+	mov esi, 0
+loop1: 
+	mov al, State[esi]
+	mul matrix[0]
+
+	mov dl, al
+
+	mov al, State[esi]
+	mul matrix[1]
+
+	mov dh, al
+
+	mov al, State[esi]
+	mul matrix[2]
+
+	mov bl, al
+
+	mov al, State[esi]
+	mul matrix[3]
+
+	mov bh, al
+
+	xor dl, dh
+	xor dl, bl
+	xor dl, bh
+
+	mov temp[0], dl
+
+	inc esi
+	loop loop1
+	
+
+	mov ecx, 16
+	L2:
+		mSwap State[ecx], temp[ecx]
+		loop L2
+
 
 	exit
 main ENDP
+
+
+
+
 END main
