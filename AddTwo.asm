@@ -36,25 +36,6 @@ L2:
 	mov eax, 0
 
 	mov al, State[ecx-1]; lower nibble
-			;mov ah, State; upper nibble
-
-			;and al, 00001111b
-			;and ah, 11110000b
-			;shr ah, 4
-
-			;push eax
-			;mov ebx, 0
-
-			;mov bl, al
-			;mov bh, ah
-			;movzx eax, bh
-			;imul eax, 16
-
-			;mov bh, 0
-			;add eax, ebx
-
-			;pop eax
-
 	mov esi, OFFSET sbox
 	add esi, eax
 	mov bl, BYTE PTR [esi]
@@ -151,11 +132,24 @@ ltable	BYTE	000h, 000h, 019h, 001h, 032h, 002h, 01Ah, 0C6h, 04Bh, 0C7h, 01Bh, 06
 		BYTE	044h, 011h, 092h, 0D9h, 023h, 020h, 02Eh, 089h, 0B4h, 07Ch, 0B8h, 026h, 077h, 099h, 0E3h, 0A5h
 		BYTE	067h, 04Ah, 0EDh, 0DEh, 0C5h, 031h, 0FEh, 018h, 00Dh, 063h, 08Ch, 080h, 0C0h, 0F7h, 070h, 007h
 
-State BYTE 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
-temp BYTE 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+State BYTE 4 DUP(0d4h,0bfh,05dh,030h)
+temp BYTE 16 DUP(0)
 matrix BYTE 2,3,1,1
 zero BYTE 0
 .code
+
+
+;--------------
+pSwap PROC USES eax ebx ecx edx y:PTR BYTE, x:PTR BYTE
+;--------------
+	mov edx, y
+	mov al, [edx]
+	mov ecx, x
+	mov bl, [ecx]
+	mov [edx], bl
+	mov [ecx], al
+	ret
+pSwap ENDP
 
 
 ;----------------------------
@@ -176,62 +170,108 @@ mSwap State[7], State[3]
  ret
 pShiftRow ENDP
 
+;------------------------------
+pMultGalois PROC USES esi ebx edx a:BYTE, b:BYTE
+; Returns = in al
+;------------------------------
+mov eax, 0
+mov esi, OFFSET ltable
+mov al, a
+add esi, eax
+mov bl, BYTE PTR [esi]
+
+mov dl, bl
+
+mov eax,0
+mov esi, OFFSET ltable
+mov al, b
+add esi, eax
+mov bl, BYTE PTR [esi]
+
+mov dh, bl
+
+add dl, dh      ; L + L
+
+mov eax, 0
+mov esi, OFFSET etable
+mov al, dl
+add esi, eax
+mov al, BYTE PTR [esi]
+
+ret
+pMultGalois ENDP
+
 
 ;---------------------------
-pMixCol PROC
-;
+pMixCol PROC USES eax ebx ecx edx esi edi
 ;---------------------------
+	mov eax, 0
 
+
+	mov ecx, 4
+	mov esi, 0
+	mov ebx, 0
+	mov edi, 0
+loop2:
+	push ecx
+	push edi
+	mov ecx, 4
+	mov esi, 0
+	loop1: 
+		invoke pMultGalois, State[edi+0], matrix[0]
+		mov dl, al
+
+		invoke pMultGalois, State[edi+1], matrix[1]
+		mov dh, al
+
+		invoke pMultGalois, State[edi+2], matrix[2]
+		mov bl, al
+
+		invoke pMultGalois, State[edi+3], matrix[3]
+		mov bh, al
+
+		xor dl, dh
+		xor dl, bl
+		xor dl, bh
+
+		mov temp[edi+esi], dl
+
+		;this will be mShiftMatrix
+		invoke pSwap, ADDR matrix[2], ADDR matrix[3]
+		invoke pSwap, ADDR matrix[1], ADDR matrix[2]
+		invoke pSwap, ADDR matrix[0], ADDR matrix[1]
+
+		inc esi
+
+		dec ecx
+		jne loop1
+		pop edi
+		pop ecx
+
+		add edi, 4
+		dec ecx
+	jne loop2
+	
+
+	mov ecx, 16 ; change back to 16
+	mov esi, 0
+	L2:
+		invoke pSwap, ADDR State[esi], ADDR temp[esi]
+		inc esi
+		loop L2
 
 ret
 pMixCol ENDP
+
+
 
 main PROC
 	;mByteSub State
 	;invoke pShiftRow
 	
-	; We are working on Mix Column See the paper thingy url.
-	mov eax, 0
+	invoke pMixCol
 
-
-	mov ecx, 16
-	mov esi, 0
-loop1: 
-	mov al, State[esi]
-	mul matrix[0]
-
-	mov dl, al
-
-	mov al, State[esi]
-	mul matrix[1]
-
-	mov dh, al
-
-	mov al, State[esi]
-	mul matrix[2]
-
-	mov bl, al
-
-	mov al, State[esi]
-	mul matrix[3]
-
-	mov bh, al
-
-	xor dl, dh
-	xor dl, bl
-	xor dl, bh
-
-	mov temp[0], dl
-
-	inc esi
-	loop loop1
-	
-
-	mov ecx, 16
-	L2:
-		mSwap State[ecx], temp[ecx]
-		loop L2
-
+	call Dumpregs
 
 	exit
 main ENDP
