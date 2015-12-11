@@ -132,9 +132,18 @@ ltable	BYTE	000h, 000h, 019h, 001h, 032h, 002h, 01Ah, 0C6h, 04Bh, 0C7h, 01Bh, 06
 		BYTE	044h, 011h, 092h, 0D9h, 023h, 020h, 02Eh, 089h, 0B4h, 07Ch, 0B8h, 026h, 077h, 099h, 0E3h, 0A5h
 		BYTE	067h, 04Ah, 0EDh, 0DEh, 0C5h, 031h, 0FEh, 018h, 00Dh, 063h, 08Ch, 080h, 0C0h, 0F7h, 070h, 007h
 
-State BYTE 4 DUP(0d4h,0bfh,05dh,030h)
+; Rcon "function" for key expansion
+Rcon	DWORD	01000000h, 02000000h, 04000000h, 08000000h, 10000000h, 20000000h, 40000000h, 80000000h, 1B000000h, 36000000h
+		DWORD	6c000000h, 0d8000000h, 0ab000000h, 4d000000h, 9a000000h
+
+State BYTE 1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh,1h
 temp BYTE 16 DUP(0)
 matrix BYTE 2,3,1,1
+keytest BYTE 1,2,3,4
+
+key BYTE 0h,1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh
+expKey BYTE 176 DUP(0)
+
 zero BYTE 0
 .code
 
@@ -152,20 +161,45 @@ pSwap PROC USES eax ebx ecx edx y:PTR BYTE, x:PTR BYTE
 pSwap ENDP
 
 
+;---------------------------
+pSubWord PROC ;a:DWORD
+; Receives = eax, the 4 bytes to lookup
+; Returns = eax, the 4 bytes that came from the lookup
+;---------------------------
+	push esi
+	push ecx
+	mov ecx, 4
+l2:
+	mov edx, 0
+	mov dl, al
+	mov esi, OFFSET sbox
+	add esi, edx
+	mov bl, BYTE PTR [esi]
+	mov al, bl
+
+
+	rol eax, 8
+	loop l2
+
+	pop ecx
+	pop esi
+	ret
+pSubWord ENDP
+
 ;----------------------------
 pShiftRow PROC
 ; Requires = Nothing
 ;----------------------------
-mSwap State[1], State[5]
-mSwap State[5], State[9]
-mSwap State[9], State[13]
+invoke pSwap, ADDR State[1], ADDR State[5]
+invoke pSwap, ADDR State[5], ADDR State[9]
+invoke pSwap, ADDR State[9], ADDR State[13]
 
-mSwap State[2], State[10]
-mSwap State[6], State[14]
+invoke pSwap, ADDR State[2], ADDR State[10]
+invoke pSwap, ADDR State[6], ADDR State[14]
 
-mSwap State[15], State[11]
-mSwap State[11], State[7]
-mSwap State[7], State[3]
+invoke pSwap, ADDR State[15], ADDR State[11]
+invoke pSwap, ADDR State[11], ADDR State[7]
+invoke pSwap, ADDR State[7], ADDR State[3]
 
  ret
 pShiftRow ENDP
@@ -241,6 +275,10 @@ loop2:
 		invoke pSwap, ADDR matrix[1], ADDR matrix[2]
 		invoke pSwap, ADDR matrix[0], ADDR matrix[1]
 
+
+
+		;invoke pSwap, ADDR State[1], ADDR State[2]
+
 		inc esi
 
 		dec ecx
@@ -264,12 +302,135 @@ ret
 pMixCol ENDP
 
 
+;-----------------------------
+pEK PROC a:BYTE
+; a == 1 || a == 4
+; Receives = esi, the index
+; Returns = eax, a DWORD containing the last 4 bytes of the expanded key.
+;-----------------------------
+	mov eax, esi
+	movzx ebx, a
+	sub eax, ebx
+	mov edx, 4
+	mul edx
+	mov edx, eax
+
+	mov eax, DWORD PTR expKey[edx] ; This works, but it is in little endian
+
+	mov bx, ax
+	shr eax, 16
+
+	mov dl, bl
+	mov bl, ah
+	mov ah, dl
+
+	mov dl, al
+	mov al, bh
+	mov bh, dl
+
+	shl eax, 16
+	add eax, ebx
+
+	ret
+pEK ENDP
+
+
+;--------------------------
+pAddExpKey PROC
+; This takes whatever 
+; Receives = eax
+;--------------------------
+	push ecx
+	mov ecx, 4
+	rol eax, 8      ; gets the "first value"
+L16:
+	mov expKey[edi], al
+	rol eax, 8
+
+	inc edi
+	loop L16
+
+	pop ecx
+	ret
+pAddExpKey ENDP
+
+
+
+pExpandKey PROC
+	mov ecx, 16
+	mov edi, 0
+
+	;This is the K(0), K(4), K(8), K(12)
+l5:
+	mov al, key[edi]
+	mov expkey[edi], al
+	inc edi
+
+	loop l5
+
+
+	mov ecx, 10
+	mov esi, 4					
+
+l3:
+	; Round # is stored in esi
+	invoke pEK, 1
+	rol eax, 8                        ;RotWord  --instead of pRotateKey
+	invoke pSubWord
+
+	mov edx, esi
+	shr edx, 2           ; divide by 4
+	dec edx
+
+	mov ebx, 0
+	mov ebx, Rcon[edx]
+
+	xor eax, ebx
+	push eax
+
+	invoke pEK, 4
+	mov ebx, eax
+	pop eax
+
+	xor eax, ebx
+
+	inc esi
+	invoke pAddExpKey
+
+	push ecx
+	mov ecx, 3
+l32:
+	invoke pEK, 1
+	push eax
+	invoke pEK, 4
+	mov ebx, eax
+	pop eax
+	xor eax, ebx
+	invoke pAddExpKey
+
+	inc esi
+	loop l32
+	
+	pop ecx
+	
+
+	dec ecx
+	jne l3
+
+	ret
+pExpandKey ENDP
 
 main PROC
 	;mByteSub State
 	;invoke pShiftRow
+	;invoke pMixCol
+	;invoke pRotateKey, ADDR keytest
+	;invoke pSubWord, ADDR keytest
+
+	invoke pExpandkey
+
 	
-	invoke pMixCol
+	; Test expanding key....
 
 	call Dumpregs
 
