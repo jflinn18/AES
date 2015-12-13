@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/10/15 18:35:00
+Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/13/15 12:51:21
 AddTwo.asm						     Page 1 - 1
 
 
@@ -409,23 +409,6 @@ AddTwo.asm						     Page 1 - 1
  0000001D			pSwap ENDP
 
 
-				;pRotateKey PROC a:DWORD
-				;	mov eax, a
-				;	add eax, 1
-				;	invoke pSwap, a,  eax
-				;	mov ebx, eax
-				;	inc eax
-				;	invoke pSwap, ebx, eax
-				;	inc eax
-				;	inc ebx
-				;	invoke pSwap, ebx, eax
-				;
-				;
-				;	ret
-				;pRotateKey ENDP
-
-
-
 				;---------------------------
  0000001D			pSubWord PROC ;a:DWORD
 				; Receives = eax, the 4 bytes to lookup
@@ -706,8 +689,9 @@ AddTwo.asm						     Page 1 - 1
  00000238			pAddExpKey ENDP
 
 
-
+				;---------------------------------------
  00000238			pExpandKey PROC
+				;---------------------------------------
  00000238  B9 00000010			mov ecx, 16
  0000023D  BF 00000000			mov edi, 0
 
@@ -719,13 +703,57 @@ AddTwo.asm						     Page 1 - 1
 
  0000024F  E2 F1			loop l5
 
+					
+ 00000251  BE 00000004			mov esi, 4	
 
- 00000251  B9 0000000A			mov ecx, 10
- 00000256  BE 00000004			mov esi, 4					
+					COMMENT @
+					; Round # is stored in esi
+					invoke pEK, 1					  ; typo????
+					rol eax, 8                        ;RotWord  --instead of pRotateKey
+					invoke pSubWord
+
+					mov edx, esi
+					shr edx, 2           ; divide by 4
+					dec edx
+
+					mov ebx, 0
+					mov ebx, Rcon[edx]
+
+					xor eax, ebx
+					push eax
+
+					invoke pEK, 4
+					mov ebx, eax
+					pop eax
+
+					xor eax, ebx
+
+					inc esi
+					invoke pAddExpKey
+					
+
+					mov ecx, 3
+
+					l42:
+						invoke pEK, 1
+						push eax
+						invoke pEK, 4
+						mov ebx, eax
+						pop eax
+						xor eax, ebx
+						invoke pAddExpKey
+
+						inc esi
+						loop l42
+				@
+
+
+ 00000256  B9 0000000A			mov ecx, 10
+								
 
  0000025B			l3:
 					; Round # is stored in esi
-					invoke pEK, 1
+					invoke pEK, 1					  ; typo????
  0000025B  6A 01	   *	    push   +000000001h
  0000025D  E8 FFFFFF8A	   *	    call   pEK
  00000262  C1 C0 08			rol eax, 8                        ;RotWord  --instead of pRotateKey
@@ -737,52 +765,55 @@ AddTwo.asm						     Page 1 - 1
  0000026F  4A				dec edx
 
  00000270  BB 00000000			mov ebx, 0
- 00000275  8B 9A 00000400 R		mov ebx, Rcon[edx]
+ 00000275  6B D2 04			imul edx, 4
+ 00000278  8B 9A 00000400 R		mov ebx, Rcon[edx]
 
- 0000027B  33 C3			xor eax, ebx
- 0000027D  50				push eax
+ 0000027E  33 C3			xor eax, ebx
+ 00000280  50				push eax
 
 					invoke pEK, 4
- 0000027E  6A 04	   *	    push   +000000004h
- 00000280  E8 FFFFFF67	   *	    call   pEK
- 00000285  8B D8			mov ebx, eax
- 00000287  58				pop eax
+ 00000281  6A 04	   *	    push   +000000004h
+ 00000283  E8 FFFFFF64	   *	    call   pEK
+ 00000288  8B D8			mov ebx, eax
+ 0000028A  58				pop eax
 
- 00000288  33 C3			xor eax, ebx
+ 0000028B  33 C3			xor eax, ebx
 
- 0000028A  46				inc esi
+ 0000028D  46				inc esi
 					invoke pAddExpKey
- 0000028B  E8 FFFFFF91	   *	    call   pAddExpKey
+ 0000028E  E8 FFFFFF8E	   *	    call   pAddExpKey
 
- 00000290  51				push ecx
- 00000291  B9 00000003			mov ecx, 3
- 00000296			l32:
-					invoke pEK, 1
- 00000296  6A 01	   *	    push   +000000001h
- 00000298  E8 FFFFFF4F	   *	    call   pEK
- 0000029D  50				push eax
-					invoke pEK, 4
- 0000029E  6A 04	   *	    push   +000000004h
- 000002A0  E8 FFFFFF47	   *	    call   pEK
- 000002A5  8B D8			mov ebx, eax
- 000002A7  58				pop eax
- 000002A8  33 C3			xor eax, ebx
-					invoke pAddExpKey
- 000002AA  E8 FFFFFF72	   *	    call   pAddExpKey
+ 00000293  51				push ecx
+ 00000294  B9 00000003			mov ecx, 3
 
- 000002AF  46				inc esi
- 000002B0  E2 E4			loop l32
+ 00000299				l32:
+						invoke pEK, 1
+ 00000299  6A 01	   *	    push   +000000001h
+ 0000029B  E8 FFFFFF4C	   *	    call   pEK
+ 000002A0  50					push eax
+						invoke pEK, 4
+ 000002A1  6A 04	   *	    push   +000000004h
+ 000002A3  E8 FFFFFF44	   *	    call   pEK
+ 000002A8  8B D8				mov ebx, eax
+ 000002AA  58					pop eax
+ 000002AB  33 C3				xor eax, ebx
+						invoke pAddExpKey
+ 000002AD  E8 FFFFFF6F	   *	    call   pAddExpKey
+
+ 000002B2  46					inc esi
+ 000002B3  E2 E4				loop l32
 					
- 000002B2  59				pop ecx
+ 000002B5  59				pop ecx
 					
 
- 000002B3  49				dec ecx
- 000002B4  75 A5			jne l3
+ 000002B6  49				dec ecx
+ 000002B7  75 A2			jne l3
 
- 000002B6  C3				ret
- 000002B7			pExpandKey ENDP
+ 000002B9  C3				ret
+ 000002BA			pExpandKey ENDP
 
- 000002B7			main PROC
+
+ 000002BA			main PROC
 					;mByteSub State
 					;invoke pShiftRow
 					;invoke pMixCol
@@ -790,25 +821,23 @@ AddTwo.asm						     Page 1 - 1
 					;invoke pSubWord, ADDR keytest
 
 					invoke pExpandkey
- 000002B7  E8 FFFFFF7C	   *	    call   pExpandKey
+ 000002BA  E8 FFFFFF79	   *	    call   pExpandKey
 
 					
-					; Working on Expanding the key. 
-					; No need for pRotateKey
-					; Trying to rewrite pSubWord to use the eax register
+					; Test expanding key....
 
- 000002BC  E8 00000000 E		call Dumpregs
+ 000002BF  E8 00000000 E		call Dumpregs
 
 					exit
- 000002C1  6A 00	   *	    push   +000000000h
- 000002C3  E8 00000000 E   *	    call   ExitProcess
- 000002C8			main ENDP
+ 000002C4  6A 00	   *	    push   +000000000h
+ 000002C6  E8 00000000 E   *	    call   ExitProcess
+ 000002CB			main ENDP
 
 
 
 
 				END main
-Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/10/15 18:35:00
+Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/13/15 12:51:21
 AddTwo.asm						     Symbols 2 - 1
 
 
@@ -913,7 +942,7 @@ Segments and Groups:
 FLAT . . . . . . . . . . . . . .	GROUP
 STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
 _DATA  . . . . . . . . . . . . .	32 Bit	 00000525 Para	  Public  'DATA'	
-_TEXT  . . . . . . . . . . . . .	32 Bit	 000002C8 Para	  Public  'CODE'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 000002CB Para	  Public  'CODE'	
 
 
 Procedures, parameters, and locals:
@@ -1020,15 +1049,15 @@ WriteStackFrame  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 WriteString  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteToFile  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteWindowsMsg  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-main . . . . . . . . . . . . . .	P Near	 000002B7 _TEXT	Length= 00000011 Public STDCALL
+main . . . . . . . . . . . . . .	P Near	 000002BA _TEXT	Length= 00000011 Public STDCALL
 pAddExpKey . . . . . . . . . . .	P Near	 00000221 _TEXT	Length= 00000017 Public STDCALL
   L16  . . . . . . . . . . . . .	L Near	 0000022A _TEXT	
 pEK  . . . . . . . . . . . . . .	P Near	 000001EC _TEXT	Length= 00000035 Public STDCALL
   a  . . . . . . . . . . . . . .	Byte	 bp + 00000008
-pExpandKey . . . . . . . . . . .	P Near	 00000238 _TEXT	Length= 0000007F Public STDCALL
+pExpandKey . . . . . . . . . . .	P Near	 00000238 _TEXT	Length= 00000082 Public STDCALL
   l5 . . . . . . . . . . . . . .	L Near	 00000242 _TEXT	
   l3 . . . . . . . . . . . . . .	L Near	 0000025B _TEXT	
-  l32  . . . . . . . . . . . . .	L Near	 00000296 _TEXT	
+  l32  . . . . . . . . . . . . .	L Near	 00000299 _TEXT	
 pMixCol  . . . . . . . . . . . .	P Near	 000000FC _TEXT	Length= 000000F0 Public STDCALL
   loop2  . . . . . . . . . . . .	L Near	 0000011B _TEXT	
   loop1  . . . . . . . . . . . .	L Near	 00000127 _TEXT	

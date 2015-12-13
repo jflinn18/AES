@@ -355,8 +355,9 @@ L16:
 pAddExpKey ENDP
 
 
-
+;---------------------------------------
 pExpandKey PROC
+;---------------------------------------
 	mov ecx, 16
 	mov edi, 0
 
@@ -368,13 +369,12 @@ l5:
 
 	loop l5
 
+	
+	mov esi, 4	
 
-	mov ecx, 10
-	mov esi, 4					
-
-l3:
+	COMMENT @
 	; Round # is stored in esi
-	invoke pEK, 1
+	invoke pEK, 1					  ; typo????
 	rol eax, 8                        ;RotWord  --instead of pRotateKey
 	invoke pSubWord
 
@@ -396,20 +396,67 @@ l3:
 
 	inc esi
 	invoke pAddExpKey
+	
 
-	push ecx
 	mov ecx, 3
-l32:
-	invoke pEK, 1
+
+	l42:
+		invoke pEK, 1
+		push eax
+		invoke pEK, 4
+		mov ebx, eax
+		pop eax
+		xor eax, ebx
+		invoke pAddExpKey
+
+		inc esi
+		loop l42
+@
+
+
+	mov ecx, 10
+				
+
+l3:
+	; Round # is stored in esi
+	invoke pEK, 1					  ; typo????
+	rol eax, 8                        ;RotWord  --instead of pRotateKey
+	invoke pSubWord
+
+	mov edx, esi
+	shr edx, 2           ; divide by 4
+	dec edx
+
+	mov ebx, 0
+	imul edx, 4
+	mov ebx, Rcon[edx]
+
+	xor eax, ebx
 	push eax
+
 	invoke pEK, 4
 	mov ebx, eax
 	pop eax
+
 	xor eax, ebx
-	invoke pAddExpKey
 
 	inc esi
-	loop l32
+	invoke pAddExpKey
+
+	push ecx
+	mov ecx, 3
+
+	l32:
+		invoke pEK, 1
+		push eax
+		invoke pEK, 4
+		mov ebx, eax
+		pop eax
+		xor eax, ebx
+		invoke pAddExpKey
+
+		inc esi
+		loop l32
 	
 	pop ecx
 	
@@ -420,6 +467,7 @@ l32:
 	ret
 pExpandKey ENDP
 
+
 main PROC
 	;mByteSub State
 	;invoke pShiftRow
@@ -427,10 +475,9 @@ main PROC
 	;invoke pRotateKey, ADDR keytest
 	;invoke pSubWord, ADDR keytest
 
-	invoke pExpandkey
+	;invoke pExpandkey                ; Expanding the key works.
 
 	
-	; Test expanding key....
 
 	call Dumpregs
 
