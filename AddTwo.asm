@@ -19,17 +19,21 @@
 INCLUDE Irvine32.inc
 
 
-mAddRoundKey MACRO State, expKey   ; expKey is the 16 bytes of the Expanded Key
+mAddRoundKey MACRO State:REQ, expKey:REQ   ; expKey is the 16 bytes of the Expanded Key
+	pushad
 	mov ecx, 16
 L1:
 	mov al, expKey[ecx]
 	xor State[ecx], al 
 	loop L1
 
+	popad
+
 ENDM
 
 
 mByteSub MACRO State:REQ
+	pushad
 	mov ecx, 16
 
 L2:
@@ -42,6 +46,8 @@ L2:
 	mov State[ecx-1], bl
 
 	loop L2
+
+	popad
 
 ENDM
 
@@ -136,13 +142,24 @@ ltable	BYTE	000h, 000h, 019h, 001h, 032h, 002h, 01Ah, 0C6h, 04Bh, 0C7h, 01Bh, 06
 Rcon	DWORD	01000000h, 02000000h, 04000000h, 08000000h, 10000000h, 20000000h, 40000000h, 80000000h, 1B000000h, 36000000h
 		DWORD	6c000000h, 0d8000000h, 0ab000000h, 4d000000h, 9a000000h
 
-State BYTE 1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh,1h
+;State BYTE 1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh,1h
+State BYTE 4 DUP(04h, 66h, 81h, 0e5h)
+;State BYTE 4 DUP(0d4h, 0bfh, 5dh, 30h)
 temp BYTE 16 DUP(0)
 matrix BYTE 2,3,1,1
+matrixinv BYTE 0eh, 0bh, 0dh, 09h
 keytest BYTE 1,2,3,4
 
-key BYTE 0h,1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh
+;key BYTE 0h,1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh
+key BYTE 0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3
 expKey BYTE 176 DUP(0)
+
+
+;plaintext BYTE 256 DUP(0) ; we are so going bigger!!!!!!!!!!!!!
+plaintext BYTE "mississippiState", 0
+ciphertext BYTE 256 DUP(0)
+
+
 
 zero BYTE 0
 .code
@@ -162,7 +179,7 @@ pSwap ENDP
 
 
 ;---------------------------
-pSubWord PROC ;a:DWORD
+pSubWord PROC
 ; Receives = eax, the 4 bytes to lookup
 ; Returns = eax, the 4 bytes that came from the lookup
 ;---------------------------
@@ -229,7 +246,8 @@ add dl, dh      ; L + L
 mov eax, 0
 mov esi, OFFSET etable
 mov al, dl
-add esi, eax
+;add esi, eax
+adc esi, eax
 mov al, BYTE PTR [esi]
 
 ret
@@ -371,49 +389,6 @@ l5:
 
 	
 	mov esi, 4	
-
-	COMMENT @
-	; Round # is stored in esi
-	invoke pEK, 1					  ; typo????
-	rol eax, 8                        ;RotWord  --instead of pRotateKey
-	invoke pSubWord
-
-	mov edx, esi
-	shr edx, 2           ; divide by 4
-	dec edx
-
-	mov ebx, 0
-	mov ebx, Rcon[edx]
-
-	xor eax, ebx
-	push eax
-
-	invoke pEK, 4
-	mov ebx, eax
-	pop eax
-
-	xor eax, ebx
-
-	inc esi
-	invoke pAddExpKey
-	
-
-	mov ecx, 3
-
-	l42:
-		invoke pEK, 1
-		push eax
-		invoke pEK, 4
-		mov ebx, eax
-		pop eax
-		xor eax, ebx
-		invoke pAddExpKey
-
-		inc esi
-		loop l42
-@
-
-
 	mov ecx, 10
 				
 
@@ -468,6 +443,216 @@ l3:
 pExpandKey ENDP
 
 
+;---------------------------
+pAddRoundKey PROC
+; Requires edi, the index of the exp
+;---------------------------
+	pushad
+	mov ecx, 16
+	mov esi, 0
+L1:
+	add edi, esi
+	mov al, expKey[edi]
+	xor State[esi], al 
+	
+	inc esi
+	loop L1
+
+	popad
+
+	ret
+pAddRoundKey ENDP
+
+
+;---------------------------
+pByteSub PROC
+;---------------------------
+	pushad
+	mov ecx, 16
+
+L2:
+	mov eax, 0
+
+	mov al, State[ecx-1]; lower nibble
+	mov esi, OFFSET sbox
+	add esi, eax
+	mov bl, BYTE PTR [esi]
+	mov State[ecx-1], bl
+
+	loop L2
+
+	popad
+
+	ret
+pByteSub ENDP
+
+
+;----------------------------
+pEncryptBlock PROC USES ecx esi blockAdd:DWORD
+; blockAdd is the memory address of the starting index of the 
+;    the block that is currently being encrypted
+;----------------------------
+	 
+	; loop and move the blockAdd value into State
+	mov ecx, 16
+	mov esi, 0
+	l5690:
+		mov edi, esi
+		add edi, blockAdd
+		mov al, [edi]
+		mov State[esi], al
+	
+		inc esi
+		loop l5690
+
+	mov edi, 0
+	invoke pAddRoundKey
+
+	mov ecx, 9
+	mov esi, 1
+	l8902:
+		invoke pByteSub
+		invoke pShiftRow
+		invoke pMixCol
+
+		mov edi, esi
+		imul edi, 16
+		invoke pAddRoundKey
+
+		inc esi
+		loop l8902
+
+
+	invoke pByteSub
+	invoke pShiftRow
+	mov edi, 160
+	invoke pAddRoundKey
+
+	ret
+pEncryptBlock ENDP
+
+
+;---------------------------------------
+pByteSubInv PROC
+;---------------------------------------
+	pushad
+	mov ecx, 16
+
+L2:
+	mov eax, 0
+
+	mov al, State[ecx-1]; lower nibble
+	mov esi, OFFSET sboxinv
+	add esi, eax
+	mov bl, BYTE PTR [esi]
+	mov State[ecx-1], bl
+
+	loop L2
+
+	popad
+
+
+	ret
+pByteSubInv ENDP
+
+
+;----------------------------
+pShiftRowInv PROC
+; Requires = Nothing
+;----------------------------
+invoke pSwap, ADDR State[9], ADDR State[13]
+invoke pSwap, ADDR State[5], ADDR State[9]
+invoke pSwap, ADDR State[1], ADDR State[5]
+
+invoke pSwap, ADDR State[2], ADDR State[10]
+invoke pSwap, ADDR State[6], ADDR State[14]
+
+invoke pSwap, ADDR State[7], ADDR State[3]
+invoke pSwap, ADDR State[11], ADDR State[7]
+invoke pSwap, ADDR State[11], ADDR State[15]
+
+ ret
+pShiftRowInv ENDP
+
+
+
+;---------------------------
+pMixColInv PROC USES eax ebx ecx edx esi edi
+;---------------------------
+	mov eax, 0
+
+
+	mov ecx, 4
+	mov esi, 0
+	mov ebx, 0
+	mov edi, 0
+loop2:
+	push ecx
+	push edi
+	mov ecx, 4
+	mov esi, 0
+
+	loop1: 
+		invoke pMultGalois, State[edi+0], matrixinv[0]
+		mov dl, al
+
+		invoke pMultGalois, State[edi+1], matrixinv[1]
+		mov dh, al
+
+		invoke pMultGalois, State[edi+2], matrixinv[2]
+		mov bl, al
+
+		invoke pMultGalois, State[edi+3], matrixinv[3]
+		mov bh, al
+
+		xor dl, dh
+		xor dl, bl
+		xor dl, bh
+
+		mov temp[edi+esi], dl
+
+		;this will be mShiftMatrix
+		invoke pSwap, ADDR matrixinv[2], ADDR matrixinv[3]
+		invoke pSwap, ADDR matrixinv[1], ADDR matrixinv[2]
+		invoke pSwap, ADDR matrixinv[0], ADDR matrixinv[1]
+
+
+
+		;invoke pSwap, ADDR State[1], ADDR State[2]
+
+		inc esi
+
+		dec ecx
+		jne loop1
+		pop edi
+		pop ecx
+
+		add edi, 4
+		dec ecx
+	jne loop2
+	
+
+	mov ecx, 16 ; change back to 16
+	mov esi, 0
+	L2:
+		invoke pSwap, ADDR State[esi], ADDR temp[esi]
+		inc esi
+		loop L2
+
+ret
+pMixColInv ENDP
+
+
+
+;---------------------------------------
+pDecryptBlock PROC
+;---------------------------------------
+
+
+	ret
+pDecryptBlock ENDP
+
+
 main PROC
 	;mByteSub State
 	;invoke pShiftRow
@@ -477,7 +662,9 @@ main PROC
 
 	;invoke pExpandkey                ; Expanding the key works.
 
+	;invoke pEncryptBlock, ADDR plaintext[0]
 	
+	invoke pMixColInv
 
 	call Dumpregs
 
