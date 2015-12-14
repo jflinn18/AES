@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/13/15 15:09:15
+Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/13/15 19:49:00
 AddTwo.asm						     Page 1 - 1
 
 
@@ -11,13 +11,7 @@ AddTwo.asm						     Page 1 - 1
 				;
 
 
-
-
 				;http://www.adamberent.com/documents/AESbyExample.pdf
-
-
-
-
 
 
 				INCLUDE Irvine32.inc
@@ -39,55 +33,7 @@ AddTwo.asm						     Page 1 - 1
 			      C .LIST
 			      C 
 
-
-				mAddRoundKey MACRO State:REQ, expKey:REQ   ; expKey is the 16 bytes of the Expanded Key
-					pushad
-					mov ecx, 16
-				L1:
-					mov al, expKey[ecx]
-					xor State[ecx], al 
-					loop L1
-
-					popad
-
-				ENDM
-
-
-				mByteSub MACRO State:REQ
-					pushad
-					mov ecx, 16
-
-				L2:
-					mov eax, 0
-
-					mov al, State[ecx-1]; lower nibble
-					mov esi, OFFSET sbox
-					add esi, eax
-					mov bl, BYTE PTR [esi]
-					mov State[ecx-1], bl
-
-					loop L2
-
-					popad
-
-				ENDM
-
-				mSwap MACRO y:REQ, x:REQ
-					push eax
-					mov al, y
-					mov ah, x
-					mov y, ah
-					mov x, al
-					pop eax
-				ENDM
-
-				mShiftMatrix MACRO
-
-					mSwap matrix[2], matrix[3]
-					mSwap matrix[1], matrix[2]
-					mSwap matrix[0], matrix[1]
-
-				ENDM
+ = 00000800			FILESIZE = 2048
 
  00000000			.data
 				; S-Box Lookup Table
@@ -368,10 +314,13 @@ AddTwo.asm						     Page 1 - 1
 	   4D000000
 	   9A000000
 
-				;State BYTE 1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh,1h
- 0000043C  00000004 [		State BYTE 4 DUP(04h, 66h, 81h, 0e5h)
-	    04 66 81 E5
-	   ]
+				;State BYTE 0h,1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh
+ 0000043C 0F 0E 0D 0C 0B	State BYTE 0fh, 0eh, 0dh, 0ch, 0bh, 0ah, 9h,8h,7h,6h,5h,4h,3h,2h,1h,0h
+	   0A 09 08 07 06
+	   05 04 03 02 01
+	   00
+				;State BYTE 4 DUP(0,1,2,3)
+				;State BYTE 4 DUP(04h, 66h, 81h, 0e5h)
 				;State BYTE 4 DUP(0d4h, 0bfh, 5dh, 30h)
  0000044C  00000010 [		temp BYTE 16 DUP(0)
 	    00
@@ -390,16 +339,51 @@ AddTwo.asm						     Page 1 - 1
 	   ]
 
 
-				;plaintext BYTE 256 DUP(0) ; we are so going bigger!!!!!!!!!!!!!
- 00000528 6D 69 73 73 69	plaintext BYTE "mississippiState", 0
-	   73 73 69 70 70
-	   69 53 74 61 74
-	   65 00
- 00000539			ciphertext BYTE 256 DUP(0)
+ 00000528  00000800 [		inbuffer BYTE FILESIZE DUP(0)
+	    00
+	   ]
+				;inbuffer BYTE "mississippiState",0
+ 00000D28  00000800 [		outbuffer BYTE FILESIZE DUP(0)
+	    00
+	   ]
 
 
+ 00001528  00000100 [		infile BYTE 256 DUP(0)
+	    00
+	   ]
 
- 00000639 00			zero BYTE 0
+ 00001628 45 6E 74 65 72	inmsg BYTE "Enter the file name containing the text: ",0
+	   20 74 68 65 20
+	   66 69 6C 65 20
+	   6E 61 6D 65 20
+	   63 6F 6E 74 61
+	   69 6E 69 6E 67
+	   20 74 68 65 20
+	   74 65 78 74 3A
+	   20 00
+ 00001652 45 6E 74 65 72	keymsg BYTE "Enter the key: ",0
+	   20 74 68 65 20
+	   6B 65 79 3A 20
+	   00
+ 00001662 45 6E 74 65 72	filesizemsg BYTE "Enter size of file in bytes: ",0
+	   20 73 69 7A 65
+	   20 6F 66 20 66
+	   69 6C 65 20 69
+	   6E 20 62 79 74
+	   65 73 3A 20 00
+
+ 00001680 00000000		sizeoffile DWORD ?
+
+ 00001684 31 2E 20 45 6E	menu BYTE "1. Encrypt", 0ah, 0dh, "2. Decrypt", 0ah, 0dh, "3. Exit", 0ah, 0dh, ">> ",0
+	   63 72 79 70 74
+	   0A 0D 32 2E 20
+	   44 65 63 72 79
+	   70 74 0A 0D 33
+	   2E 20 45 78 69
+	   74 0A 0D 3E 3E
+	   20 00
+
+
  00000000			.code
 
 
@@ -504,629 +488,855 @@ AddTwo.asm						     Page 1 - 1
  000000BA  56		   *	    push   esi
  000000BB  53		   *	    push   ebx
  000000BC  52		   *	    push   edx
- 000000BD  B8 00000000		mov eax, 0
- 000000C2  BE 00000300 R	mov esi, OFFSET ltable
- 000000C7  8A 45 08		mov al, a
- 000000CA  03 F0		add esi, eax
- 000000CC  8A 1E		mov bl, BYTE PTR [esi]
+				.IF (a == 0)
+ 000000BD  80 7D 08 00	   *	    cmp    a, 000h
+ 000000C1  75 04	   *	    jne    @C0001
+ 000000C3  B0 00		mov al, 0
+ 000000C5  EB 38		jmp quit
+				.ENDIF
+ 000000C7		   *@C0001:
+ 000000C7  B8 00000000		mov eax, 0
+ 000000CC  BE 00000300 R	mov esi, OFFSET ltable
+ 000000D1  8A 45 08		mov al, a
+ 000000D4  03 F0		add esi, eax
+ 000000D6  8A 1E		mov bl, BYTE PTR [esi]
 
- 000000CE  8A D3		mov dl, bl
+ 000000D8  8A D3		mov dl, bl
 
- 000000D0  B8 00000000		mov eax,0
- 000000D5  BE 00000300 R	mov esi, OFFSET ltable
- 000000DA  8A 45 0C		mov al, b
- 000000DD  03 F0		add esi, eax
- 000000DF  8A 1E		mov bl, BYTE PTR [esi]
+ 000000DA  B8 00000000		mov eax,0
+ 000000DF  BE 00000300 R	mov esi, OFFSET ltable
+ 000000E4  8A 45 0C		mov al, b
+ 000000E7  03 F0		add esi, eax
+ 000000E9  8A 1E		mov bl, BYTE PTR [esi]
 
- 000000E1  8A F3		mov dh, bl
+ 000000EB  8A F3		mov dh, bl
 
- 000000E3  02 D6		add dl, dh      ; L + L
+ 000000ED  12 D6		adc dl, dh      ; L + L
 
- 000000E5  B8 00000000		mov eax, 0
- 000000EA  BE 00000200 R	mov esi, OFFSET etable
- 000000EF  8A C2		mov al, dl
+ 000000EF  B8 00000000		mov eax, 0
+ 000000F4  BE 00000200 R	mov esi, OFFSET etable
+ 000000F9  8A C2		mov al, dl
 				;add esi, eax
- 000000F1  13 F0		adc esi, eax
- 000000F3  8A 06		mov al, BYTE PTR [esi]
+ 000000FB  13 F0		adc esi, eax
+ 000000FD  8A 06		mov al, BYTE PTR [esi]
 
+ 000000FF			quit:
 				ret
- 000000F5  5A		   *	    pop    edx
- 000000F6  5B		   *	    pop    ebx
- 000000F7  5E		   *	    pop    esi
- 000000F8  C9		   *	    leave  
- 000000F9  C2 0008	   *	    ret    00008h
- 000000FC			pMultGalois ENDP
+ 000000FF  5A		   *	    pop    edx
+ 00000100  5B		   *	    pop    ebx
+ 00000101  5E		   *	    pop    esi
+ 00000102  C9		   *	    leave  
+ 00000103  C2 0008	   *	    ret    00008h
+ 00000106			pMultGalois ENDP
 
 
 				;---------------------------
- 000000FC			pMixCol PROC USES eax ebx ecx edx esi edi
+ 00000106			pMixCol PROC USES eax ebx ecx edx esi edi
 				;---------------------------
- 000000FC  50		   *	    push   eax
- 000000FD  53		   *	    push   ebx
- 000000FE  51		   *	    push   ecx
- 000000FF  52		   *	    push   edx
- 00000100  56		   *	    push   esi
- 00000101  57		   *	    push   edi
- 00000102  B8 00000000			mov eax, 0
+ 00000106  50		   *	    push   eax
+ 00000107  53		   *	    push   ebx
+ 00000108  51		   *	    push   ecx
+ 00000109  52		   *	    push   edx
+ 0000010A  56		   *	    push   esi
+ 0000010B  57		   *	    push   edi
+ 0000010C  B8 00000000			mov eax, 0
 
 
- 00000107  B9 00000004			mov ecx, 4
- 0000010C  BE 00000000			mov esi, 0
- 00000111  BB 00000000			mov ebx, 0
- 00000116  BF 00000000			mov edi, 0
- 0000011B			loop2:
- 0000011B  51				push ecx
- 0000011C  57				push edi
- 0000011D  B9 00000004			mov ecx, 4
- 00000122  BE 00000000			mov esi, 0
- 00000127				loop1: 
+ 00000111  B9 00000004			mov ecx, 4
+ 00000116  BE 00000000			mov esi, 0
+ 0000011B  BB 00000000			mov ebx, 0
+ 00000120  BF 00000000			mov edi, 0
+ 00000125			loop2:
+ 00000125  51				push ecx
+ 00000126  57				push edi
+ 00000127  B9 00000004			mov ecx, 4
+ 0000012C  BE 00000000			mov esi, 0
+ 00000131				loop1: 
 						invoke pMultGalois, State[edi+0], matrix[0]
- 00000127  A0 0000045C R   *	    mov    al, matrix
- 0000012C  50		   *	    push   eax
- 0000012D  8A 87 0000043C R *	    mov    al, State[edi]
- 00000133  50		   *	    push   eax
- 00000134  E8 FFFFFF7E	   *	    call   pMultGalois
- 00000139  8A D0				mov dl, al
+ 00000131  A0 0000045C R   *	    mov    al, matrix
+ 00000136  50		   *	    push   eax
+ 00000137  8A 87 0000043C R *	    mov    al, State[edi]
+ 0000013D  50		   *	    push   eax
+ 0000013E  E8 FFFFFF74	   *	    call   pMultGalois
+ 00000143  8A D0				mov dl, al
 
 						invoke pMultGalois, State[edi+1], matrix[1]
- 0000013B  A0 0000045D R   *	    mov    al, matrix+001h
- 00000140  50		   *	    push   eax
- 00000141  8A 87 0000043D R *	    mov    al, State[edi]+001h
- 00000147  50		   *	    push   eax
- 00000148  E8 FFFFFF6A	   *	    call   pMultGalois
- 0000014D  8A F0				mov dh, al
+ 00000145  A0 0000045D R   *	    mov    al, matrix+001h
+ 0000014A  50		   *	    push   eax
+ 0000014B  8A 87 0000043D R *	    mov    al, State[edi]+001h
+ 00000151  50		   *	    push   eax
+ 00000152  E8 FFFFFF60	   *	    call   pMultGalois
+ 00000157  8A F0				mov dh, al
 
 						invoke pMultGalois, State[edi+2], matrix[2]
- 0000014F  A0 0000045E R   *	    mov    al, matrix+002h
- 00000154  50		   *	    push   eax
- 00000155  8A 87 0000043E R *	    mov    al, State[edi]+002h
- 0000015B  50		   *	    push   eax
- 0000015C  E8 FFFFFF56	   *	    call   pMultGalois
- 00000161  8A D8				mov bl, al
+ 00000159  A0 0000045E R   *	    mov    al, matrix+002h
+ 0000015E  50		   *	    push   eax
+ 0000015F  8A 87 0000043E R *	    mov    al, State[edi]+002h
+ 00000165  50		   *	    push   eax
+ 00000166  E8 FFFFFF4C	   *	    call   pMultGalois
+ 0000016B  8A D8				mov bl, al
 
 						invoke pMultGalois, State[edi+3], matrix[3]
- 00000163  A0 0000045F R   *	    mov    al, matrix+003h
- 00000168  50		   *	    push   eax
- 00000169  8A 87 0000043F R *	    mov    al, State[edi]+003h
- 0000016F  50		   *	    push   eax
- 00000170  E8 FFFFFF42	   *	    call   pMultGalois
- 00000175  8A F8				mov bh, al
+ 0000016D  A0 0000045F R   *	    mov    al, matrix+003h
+ 00000172  50		   *	    push   eax
+ 00000173  8A 87 0000043F R *	    mov    al, State[edi]+003h
+ 00000179  50		   *	    push   eax
+ 0000017A  E8 FFFFFF38	   *	    call   pMultGalois
+ 0000017F  8A F8				mov bh, al
 
- 00000177  32 D6				xor dl, dh
- 00000179  32 D3				xor dl, bl
- 0000017B  32 D7				xor dl, bh
+ 00000181  32 D6				xor dl, dh
+ 00000183  32 D3				xor dl, bl
+ 00000185  32 D7				xor dl, bh
 
- 0000017D  88 94 3E				mov temp[edi+esi], dl
+ 00000187  88 94 3E				mov temp[edi+esi], dl
 	   0000044C R
 
 						;this will be mShiftMatrix
 						invoke pSwap, ADDR matrix[2], ADDR matrix[3]
- 00000184  68 0000045F R   *	    push   OFFSET matrix+000000003h
- 00000189  68 0000045E R   *	    push   OFFSET matrix+000000002h
- 0000018E  E8 FFFFFE6D	   *	    call   pSwap
-						invoke pSwap, ADDR matrix[1], ADDR matrix[2]
+ 0000018E  68 0000045F R   *	    push   OFFSET matrix+000000003h
  00000193  68 0000045E R   *	    push   OFFSET matrix+000000002h
- 00000198  68 0000045D R   *	    push   OFFSET matrix+000000001h
- 0000019D  E8 FFFFFE5E	   *	    call   pSwap
-						invoke pSwap, ADDR matrix[0], ADDR matrix[1]
+ 00000198  E8 FFFFFE63	   *	    call   pSwap
+						invoke pSwap, ADDR matrix[1], ADDR matrix[2]
+ 0000019D  68 0000045E R   *	    push   OFFSET matrix+000000002h
  000001A2  68 0000045D R   *	    push   OFFSET matrix+000000001h
- 000001A7  68 0000045C R   *	    push   OFFSET matrix
- 000001AC  E8 FFFFFE4F	   *	    call   pSwap
+ 000001A7  E8 FFFFFE54	   *	    call   pSwap
+						invoke pSwap, ADDR matrix[0], ADDR matrix[1]
+ 000001AC  68 0000045D R   *	    push   OFFSET matrix+000000001h
+ 000001B1  68 0000045C R   *	    push   OFFSET matrix
+ 000001B6  E8 FFFFFE45	   *	    call   pSwap
 
 
 
 						;invoke pSwap, ADDR State[1], ADDR State[2]
 
- 000001B1  46					inc esi
+ 000001BB  46					inc esi
 
- 000001B2  49					dec ecx
- 000001B3  0F 85 FFFFFF6E			jne loop1
- 000001B9  5F					pop edi
- 000001BA  59					pop ecx
+ 000001BC  49					dec ecx
+ 000001BD  0F 85 FFFFFF6E			jne loop1
+ 000001C3  5F					pop edi
+ 000001C4  59					pop ecx
 
- 000001BB  83 C7 04				add edi, 4
- 000001BE  49					dec ecx
- 000001BF  0F 85 FFFFFF56		jne loop2
+ 000001C5  83 C7 04				add edi, 4
+ 000001C8  49					dec ecx
+ 000001C9  0F 85 FFFFFF56		jne loop2
 					
 
- 000001C5  B9 00000010			mov ecx, 16 ; change back to 16
- 000001CA  BE 00000000			mov esi, 0
- 000001CF				L2:
+ 000001CF  B9 00000010			mov ecx, 16 ; change back to 16
+ 000001D4  BE 00000000			mov esi, 0
+ 000001D9				L2:
 						invoke pSwap, ADDR State[esi], ADDR temp[esi]
- 000001CF  8D 86 0000044C R *	    lea    eax, temp[esi]
- 000001D5  50		   *	    push   eax
- 000001D6  8D 86 0000043C R *	    lea    eax, State[esi]
- 000001DC  50		   *	    push   eax
- 000001DD  E8 FFFFFE1E	   *	    call   pSwap
- 000001E2  46					inc esi
- 000001E3  E2 EA				loop L2
+ 000001D9  8D 86 0000044C R *	    lea    eax, temp[esi]
+ 000001DF  50		   *	    push   eax
+ 000001E0  8D 86 0000043C R *	    lea    eax, State[esi]
+ 000001E6  50		   *	    push   eax
+ 000001E7  E8 FFFFFE14	   *	    call   pSwap
+ 000001EC  46					inc esi
+ 000001ED  E2 EA				loop L2
 
 				ret
- 000001E5  5F		   *	    pop    edi
- 000001E6  5E		   *	    pop    esi
- 000001E7  5A		   *	    pop    edx
- 000001E8  59		   *	    pop    ecx
- 000001E9  5B		   *	    pop    ebx
- 000001EA  58		   *	    pop    eax
- 000001EB  C3		   *	    ret    00000h
- 000001EC			pMixCol ENDP
+ 000001EF  5F		   *	    pop    edi
+ 000001F0  5E		   *	    pop    esi
+ 000001F1  5A		   *	    pop    edx
+ 000001F2  59		   *	    pop    ecx
+ 000001F3  5B		   *	    pop    ebx
+ 000001F4  58		   *	    pop    eax
+ 000001F5  C3		   *	    ret    00000h
+ 000001F6			pMixCol ENDP
 
 
 				;-----------------------------
- 000001EC			pEK PROC a:BYTE
+ 000001F6			pEK PROC a:BYTE
 				; a == 1 || a == 4
 				; Receives = esi, the index
 				; Returns = eax, a DWORD containing the last 4 bytes of the expanded key.
 				;-----------------------------
- 000001EC  55		   *	    push   ebp
- 000001ED  8B EC	   *	    mov    ebp, esp
- 000001EF  8B C6			mov eax, esi
- 000001F1  0F B6 5D 08			movzx ebx, a
- 000001F5  2B C3			sub eax, ebx
- 000001F7  BA 00000004			mov edx, 4
- 000001FC  F7 E2			mul edx
- 000001FE  8B D0			mov edx, eax
+ 000001F6  55		   *	    push   ebp
+ 000001F7  8B EC	   *	    mov    ebp, esp
+ 000001F9  8B C6			mov eax, esi
+ 000001FB  0F B6 5D 08			movzx ebx, a
+ 000001FF  2B C3			sub eax, ebx
+ 00000201  BA 00000004			mov edx, 4
+ 00000206  F7 E2			mul edx
+ 00000208  8B D0			mov edx, eax
 
- 00000200  8B 82 00000478 R		mov eax, DWORD PTR expKey[edx] ; This works, but it is in little endian
+ 0000020A  8B 82 00000478 R		mov eax, DWORD PTR expKey[edx] ; This works, but it is in little endian
 
- 00000206  66| 8B D8			mov bx, ax
- 00000209  C1 E8 10			shr eax, 16
+ 00000210  66| 8B D8			mov bx, ax
+ 00000213  C1 E8 10			shr eax, 16
 
- 0000020C  8A D3			mov dl, bl
- 0000020E  8A DC			mov bl, ah
- 00000210  8A E2			mov ah, dl
+ 00000216  8A D3			mov dl, bl
+ 00000218  8A DC			mov bl, ah
+ 0000021A  8A E2			mov ah, dl
 
- 00000212  8A D0			mov dl, al
- 00000214  8A C7			mov al, bh
- 00000216  8A FA			mov bh, dl
+ 0000021C  8A D0			mov dl, al
+ 0000021E  8A C7			mov al, bh
+ 00000220  8A FA			mov bh, dl
 
- 00000218  C1 E0 10			shl eax, 16
- 0000021B  03 C3			add eax, ebx
+ 00000222  C1 E0 10			shl eax, 16
+ 00000225  03 C3			add eax, ebx
 
 					ret
- 0000021D  C9		   *	    leave  
- 0000021E  C2 0004	   *	    ret    00004h
- 00000221			pEK ENDP
+ 00000227  C9		   *	    leave  
+ 00000228  C2 0004	   *	    ret    00004h
+ 0000022B			pEK ENDP
 
 
 				;--------------------------
- 00000221			pAddExpKey PROC
+ 0000022B			pAddExpKey PROC
 				; This takes whatever 
 				; Receives = eax
 				;--------------------------
- 00000221  51				push ecx
- 00000222  B9 00000004			mov ecx, 4
- 00000227  C1 C0 08			rol eax, 8      ; gets the "first value"
- 0000022A			L16:
- 0000022A  88 87 00000478 R		mov expKey[edi], al
- 00000230  C1 C0 08			rol eax, 8
+ 0000022B  51				push ecx
+ 0000022C  B9 00000004			mov ecx, 4
+ 00000231  C1 C0 08			rol eax, 8      ; gets the "first value"
+ 00000234			L16:
+ 00000234  88 87 00000478 R		mov expKey[edi], al
+ 0000023A  C1 C0 08			rol eax, 8
 
- 00000233  47				inc edi
- 00000234  E2 F4			loop L16
+ 0000023D  47				inc edi
+ 0000023E  E2 F4			loop L16
 
- 00000236  59				pop ecx
- 00000237  C3				ret
- 00000238			pAddExpKey ENDP
+ 00000240  59				pop ecx
+ 00000241  C3				ret
+ 00000242			pAddExpKey ENDP
 
 
 				;---------------------------------------
- 00000238			pExpandKey PROC
+ 00000242			pExpandKey PROC
 				;---------------------------------------
- 00000238  B9 00000010			mov ecx, 16
- 0000023D  BF 00000000			mov edi, 0
+ 00000242  B9 00000010			mov ecx, 16
+ 00000247  BF 00000000			mov edi, 0
 
 					;This is the K(0), K(4), K(8), K(12)
- 00000242			l5:
- 00000242  8A 87 00000468 R		mov al, key[edi]
- 00000248  88 87 00000478 R		mov expkey[edi], al
- 0000024E  47				inc edi
+ 0000024C			l5:
+ 0000024C  8A 87 00000468 R		mov al, key[edi]
+ 00000252  88 87 00000478 R		mov expkey[edi], al
+ 00000258  47				inc edi
 
- 0000024F  E2 F1			loop l5
+ 00000259  E2 F1			loop l5
 
 					
- 00000251  BE 00000004			mov esi, 4	
- 00000256  B9 0000000A			mov ecx, 10
+ 0000025B  BE 00000004			mov esi, 4	
+ 00000260  B9 0000000A			mov ecx, 10
 								
 
- 0000025B			l3:
+ 00000265			l3:
 					; Round # is stored in esi
 					invoke pEK, 1					  ; typo????
- 0000025B  6A 01	   *	    push   +000000001h
- 0000025D  E8 FFFFFF8A	   *	    call   pEK
- 00000262  C1 C0 08			rol eax, 8                        ;RotWord  --instead of pRotateKey
+ 00000265  6A 01	   *	    push   +000000001h
+ 00000267  E8 FFFFFF8A	   *	    call   pEK
+ 0000026C  C1 C0 08			rol eax, 8                        ;RotWord  --instead of pRotateKey
 					invoke pSubWord
- 00000265  E8 FFFFFDB3	   *	    call   pSubWord
+ 0000026F  E8 FFFFFDA9	   *	    call   pSubWord
 
- 0000026A  8B D6			mov edx, esi
- 0000026C  C1 EA 02			shr edx, 2           ; divide by 4
- 0000026F  4A				dec edx
+ 00000274  8B D6			mov edx, esi
+ 00000276  C1 EA 02			shr edx, 2           ; divide by 4
+ 00000279  4A				dec edx
 
- 00000270  BB 00000000			mov ebx, 0
- 00000275  6B D2 04			imul edx, 4
- 00000278  8B 9A 00000400 R		mov ebx, Rcon[edx]
+ 0000027A  BB 00000000			mov ebx, 0
+ 0000027F  6B D2 04			imul edx, 4
+ 00000282  8B 9A 00000400 R		mov ebx, Rcon[edx]
 
- 0000027E  33 C3			xor eax, ebx
- 00000280  50				push eax
+ 00000288  33 C3			xor eax, ebx
+ 0000028A  50				push eax
 
 					invoke pEK, 4
- 00000281  6A 04	   *	    push   +000000004h
- 00000283  E8 FFFFFF64	   *	    call   pEK
- 00000288  8B D8			mov ebx, eax
- 0000028A  58				pop eax
+ 0000028B  6A 04	   *	    push   +000000004h
+ 0000028D  E8 FFFFFF64	   *	    call   pEK
+ 00000292  8B D8			mov ebx, eax
+ 00000294  58				pop eax
 
- 0000028B  33 C3			xor eax, ebx
+ 00000295  33 C3			xor eax, ebx
 
- 0000028D  46				inc esi
+ 00000297  46				inc esi
 					invoke pAddExpKey
- 0000028E  E8 FFFFFF8E	   *	    call   pAddExpKey
+ 00000298  E8 FFFFFF8E	   *	    call   pAddExpKey
 
- 00000293  51				push ecx
- 00000294  B9 00000003			mov ecx, 3
+ 0000029D  51				push ecx
+ 0000029E  B9 00000003			mov ecx, 3
 
- 00000299				l32:
+ 000002A3				l32:
 						invoke pEK, 1
- 00000299  6A 01	   *	    push   +000000001h
- 0000029B  E8 FFFFFF4C	   *	    call   pEK
- 000002A0  50					push eax
+ 000002A3  6A 01	   *	    push   +000000001h
+ 000002A5  E8 FFFFFF4C	   *	    call   pEK
+ 000002AA  50					push eax
 						invoke pEK, 4
- 000002A1  6A 04	   *	    push   +000000004h
- 000002A3  E8 FFFFFF44	   *	    call   pEK
- 000002A8  8B D8				mov ebx, eax
- 000002AA  58					pop eax
- 000002AB  33 C3				xor eax, ebx
+ 000002AB  6A 04	   *	    push   +000000004h
+ 000002AD  E8 FFFFFF44	   *	    call   pEK
+ 000002B2  8B D8				mov ebx, eax
+ 000002B4  58					pop eax
+ 000002B5  33 C3				xor eax, ebx
 						invoke pAddExpKey
- 000002AD  E8 FFFFFF6F	   *	    call   pAddExpKey
+ 000002B7  E8 FFFFFF6F	   *	    call   pAddExpKey
 
- 000002B2  46					inc esi
- 000002B3  E2 E4				loop l32
+ 000002BC  46					inc esi
+ 000002BD  E2 E4				loop l32
 					
- 000002B5  59				pop ecx
+ 000002BF  59				pop ecx
 					
 
- 000002B6  49				dec ecx
- 000002B7  75 A2			jne l3
+ 000002C0  49				dec ecx
+ 000002C1  75 A2			jne l3
 
- 000002B9  C3				ret
- 000002BA			pExpandKey ENDP
+ 000002C3  C3				ret
+ 000002C4			pExpandKey ENDP
 
 
 				;---------------------------
- 000002BA			pAddRoundKey PROC
+ 000002C4			pAddRoundKey PROC
 				; Requires edi, the index of the exp
 				;---------------------------
- 000002BA  60				pushad
- 000002BB  B9 00000010			mov ecx, 16
- 000002C0  BE 00000000			mov esi, 0
- 000002C5			L1:
- 000002C5  03 FE			add edi, esi
- 000002C7  8A 87 00000478 R		mov al, expKey[edi]
- 000002CD  30 86 0000043C R		xor State[esi], al 
+ 000002C4  60				pushad
+ 000002C5  B9 00000010			mov ecx, 16
+ 000002CA  BE 00000000			mov esi, 0
+ 000002CF			L1:
+ 000002CF  8A 87 00000478 R		mov al, expKey[edi]
+ 000002D5  30 86 0000043C R		xor State[esi], al 
 					
- 000002D3  46				inc esi
- 000002D4  E2 EF			loop L1
+ 000002DB  47				inc edi
+ 000002DC  46				inc esi
+ 000002DD  E2 F0			loop L1
 
- 000002D6  61				popad
+ 000002DF  61				popad
 
- 000002D7  C3				ret
- 000002D8			pAddRoundKey ENDP
+ 000002E0  C3				ret
+ 000002E1			pAddRoundKey ENDP
 
 
 				;---------------------------
- 000002D8			pByteSub PROC
+ 000002E1			pByteSub PROC
 				;---------------------------
- 000002D8  60				pushad
- 000002D9  B9 00000010			mov ecx, 16
+ 000002E1  60				pushad
+ 000002E2  B9 00000010			mov ecx, 16
 
- 000002DE			L2:
- 000002DE  B8 00000000			mov eax, 0
+ 000002E7			L2:
+ 000002E7  B8 00000000			mov eax, 0
 
- 000002E3  8A 81 0000043B R		mov al, State[ecx-1]; lower nibble
- 000002E9  BE 00000000 R		mov esi, OFFSET sbox
- 000002EE  03 F0			add esi, eax
- 000002F0  8A 1E			mov bl, BYTE PTR [esi]
- 000002F2  88 99 0000043B R		mov State[ecx-1], bl
+ 000002EC  8A 81 0000043B R		mov al, State[ecx-1]; lower nibble
+ 000002F2  BE 00000000 R		mov esi, OFFSET sbox
+ 000002F7  03 F0			add esi, eax
+ 000002F9  8A 1E			mov bl, BYTE PTR [esi]
+ 000002FB  88 99 0000043B R		mov State[ecx-1], bl
 
- 000002F8  E2 E4			loop L2
+ 00000301  E2 E4			loop L2
 
- 000002FA  61				popad
+ 00000303  61				popad
 
- 000002FB  C3				ret
- 000002FC			pByteSub ENDP
+ 00000304  C3				ret
+ 00000305			pByteSub ENDP
+
+
+
+				;---------------------------------------
+ 00000305			pByteSubInv PROC
+				;---------------------------------------
+ 00000305  60				pushad
+ 00000306  B9 00000010			mov ecx, 16
+
+ 0000030B			L2:
+ 0000030B  B8 00000000			mov eax, 0
+
+ 00000310  8A 81 0000043B R		mov al, State[ecx-1]; lower nibble
+ 00000316  BE 00000100 R		mov esi, OFFSET sboxinv
+ 0000031B  03 F0			add esi, eax
+ 0000031D  8A 1E			mov bl, BYTE PTR [esi]
+ 0000031F  88 99 0000043B R		mov State[ecx-1], bl
+
+ 00000325  E2 E4			loop L2
+
+ 00000327  61				popad
+
+
+ 00000328  C3				ret
+ 00000329			pByteSubInv ENDP
 
 
 				;----------------------------
- 000002FC			pEncryptBlock PROC USES ecx esi blockAdd:DWORD
+ 00000329			pShiftRowInv PROC
+				; Requires = Nothing
+				;----------------------------
+				invoke pSwap, ADDR State[9], ADDR State[13]
+ 00000329  68 00000449 R   *	    push   OFFSET State+00000000Dh
+ 0000032E  68 00000445 R   *	    push   OFFSET State+000000009h
+ 00000333  E8 FFFFFCC8	   *	    call   pSwap
+				invoke pSwap, ADDR State[5], ADDR State[9]
+ 00000338  68 00000445 R   *	    push   OFFSET State+000000009h
+ 0000033D  68 00000441 R   *	    push   OFFSET State+000000005h
+ 00000342  E8 FFFFFCB9	   *	    call   pSwap
+				invoke pSwap, ADDR State[1], ADDR State[5]
+ 00000347  68 00000441 R   *	    push   OFFSET State+000000005h
+ 0000034C  68 0000043D R   *	    push   OFFSET State+000000001h
+ 00000351  E8 FFFFFCAA	   *	    call   pSwap
+
+				invoke pSwap, ADDR State[2], ADDR State[10]
+ 00000356  68 00000446 R   *	    push   OFFSET State+00000000Ah
+ 0000035B  68 0000043E R   *	    push   OFFSET State+000000002h
+ 00000360  E8 FFFFFC9B	   *	    call   pSwap
+				invoke pSwap, ADDR State[6], ADDR State[14]
+ 00000365  68 0000044A R   *	    push   OFFSET State+00000000Eh
+ 0000036A  68 00000442 R   *	    push   OFFSET State+000000006h
+ 0000036F  E8 FFFFFC8C	   *	    call   pSwap
+
+				invoke pSwap, ADDR State[7], ADDR State[3]
+ 00000374  68 0000043F R   *	    push   OFFSET State+000000003h
+ 00000379  68 00000443 R   *	    push   OFFSET State+000000007h
+ 0000037E  E8 FFFFFC7D	   *	    call   pSwap
+				invoke pSwap, ADDR State[11], ADDR State[7]
+ 00000383  68 00000443 R   *	    push   OFFSET State+000000007h
+ 00000388  68 00000447 R   *	    push   OFFSET State+00000000Bh
+ 0000038D  E8 FFFFFC6E	   *	    call   pSwap
+				invoke pSwap, ADDR State[11], ADDR State[15]
+ 00000392  68 0000044B R   *	    push   OFFSET State+00000000Fh
+ 00000397  68 00000447 R   *	    push   OFFSET State+00000000Bh
+ 0000039C  E8 FFFFFC5F	   *	    call   pSwap
+
+ 000003A1  C3			 ret
+ 000003A2			pShiftRowInv ENDP
+
+
+
+				;---------------------------
+ 000003A2			pMixColInv PROC USES eax ebx ecx edx esi edi
+				;---------------------------
+ 000003A2  50		   *	    push   eax
+ 000003A3  53		   *	    push   ebx
+ 000003A4  51		   *	    push   ecx
+ 000003A5  52		   *	    push   edx
+ 000003A6  56		   *	    push   esi
+ 000003A7  57		   *	    push   edi
+ 000003A8  B8 00000000			mov eax, 0
+
+
+ 000003AD  B9 00000004			mov ecx, 4
+ 000003B2  BE 00000000			mov esi, 0
+ 000003B7  BB 00000000			mov ebx, 0
+ 000003BC  BF 00000000			mov edi, 0
+ 000003C1			loop2:
+ 000003C1  51				push ecx
+ 000003C2  57				push edi
+ 000003C3  B9 00000004			mov ecx, 4
+ 000003C8  BE 00000000			mov esi, 0
+
+ 000003CD				loop1: 
+						invoke pMultGalois, State[edi+0], matrixinv[0]
+ 000003CD  A0 00000460 R   *	    mov    al, matrixinv
+ 000003D2  50		   *	    push   eax
+ 000003D3  8A 87 0000043C R *	    mov    al, State[edi]
+ 000003D9  50		   *	    push   eax
+ 000003DA  E8 FFFFFCD8	   *	    call   pMultGalois
+ 000003DF  8A D0				mov dl, al
+
+						invoke pMultGalois, State[edi+1], matrixinv[1]
+ 000003E1  A0 00000461 R   *	    mov    al, matrixinv+001h
+ 000003E6  50		   *	    push   eax
+ 000003E7  8A 87 0000043D R *	    mov    al, State[edi]+001h
+ 000003ED  50		   *	    push   eax
+ 000003EE  E8 FFFFFCC4	   *	    call   pMultGalois
+ 000003F3  8A F0				mov dh, al
+
+						invoke pMultGalois, State[edi+2], matrixinv[2]
+ 000003F5  A0 00000462 R   *	    mov    al, matrixinv+002h
+ 000003FA  50		   *	    push   eax
+ 000003FB  8A 87 0000043E R *	    mov    al, State[edi]+002h
+ 00000401  50		   *	    push   eax
+ 00000402  E8 FFFFFCB0	   *	    call   pMultGalois
+ 00000407  8A D8				mov bl, al
+
+						invoke pMultGalois, State[edi+3], matrixinv[3]
+ 00000409  A0 00000463 R   *	    mov    al, matrixinv+003h
+ 0000040E  50		   *	    push   eax
+ 0000040F  8A 87 0000043F R *	    mov    al, State[edi]+003h
+ 00000415  50		   *	    push   eax
+ 00000416  E8 FFFFFC9C	   *	    call   pMultGalois
+ 0000041B  8A F8				mov bh, al
+
+ 0000041D  32 D6				xor dl, dh
+ 0000041F  32 D3				xor dl, bl
+ 00000421  32 D7				xor dl, bh
+
+ 00000423  88 94 3E				mov temp[edi+esi], dl
+	   0000044C R
+
+						;this will be mShiftMatrix
+						invoke pSwap, ADDR matrixinv[2], ADDR matrixinv[3]
+ 0000042A  68 00000463 R   *	    push   OFFSET matrixinv+000000003h
+ 0000042F  68 00000462 R   *	    push   OFFSET matrixinv+000000002h
+ 00000434  E8 FFFFFBC7	   *	    call   pSwap
+						invoke pSwap, ADDR matrixinv[1], ADDR matrixinv[2]
+ 00000439  68 00000462 R   *	    push   OFFSET matrixinv+000000002h
+ 0000043E  68 00000461 R   *	    push   OFFSET matrixinv+000000001h
+ 00000443  E8 FFFFFBB8	   *	    call   pSwap
+						invoke pSwap, ADDR matrixinv[0], ADDR matrixinv[1]
+ 00000448  68 00000461 R   *	    push   OFFSET matrixinv+000000001h
+ 0000044D  68 00000460 R   *	    push   OFFSET matrixinv
+ 00000452  E8 FFFFFBA9	   *	    call   pSwap
+
+
+
+						;invoke pSwap, ADDR State[1], ADDR State[2]
+
+ 00000457  46					inc esi
+
+ 00000458  49					dec ecx
+ 00000459  0F 85 FFFFFF6E			jne loop1
+ 0000045F  5F					pop edi
+ 00000460  59					pop ecx
+
+ 00000461  83 C7 04				add edi, 4
+ 00000464  49					dec ecx
+ 00000465  0F 85 FFFFFF56		jne loop2
+					
+
+ 0000046B  B9 00000010			mov ecx, 16 ; change back to 16
+ 00000470  BE 00000000			mov esi, 0
+ 00000475				L2:
+						invoke pSwap, ADDR State[esi], ADDR temp[esi]
+ 00000475  8D 86 0000044C R *	    lea    eax, temp[esi]
+ 0000047B  50		   *	    push   eax
+ 0000047C  8D 86 0000043C R *	    lea    eax, State[esi]
+ 00000482  50		   *	    push   eax
+ 00000483  E8 FFFFFB78	   *	    call   pSwap
+ 00000488  46					inc esi
+ 00000489  E2 EA				loop L2
+
+				ret
+ 0000048B  5F		   *	    pop    edi
+ 0000048C  5E		   *	    pop    esi
+ 0000048D  5A		   *	    pop    edx
+ 0000048E  59		   *	    pop    ecx
+ 0000048F  5B		   *	    pop    ebx
+ 00000490  58		   *	    pop    eax
+ 00000491  C3		   *	    ret    00000h
+ 00000492			pMixColInv ENDP
+
+
+
+				;----------------------------
+ 00000492			pEncryptBlock PROC USES ecx esi blockAdd:DWORD
 				; blockAdd is the memory address of the starting index of the 
 				;    the block that is currently being encrypted
 				;----------------------------
 					 
 					; loop and move the blockAdd value into State
- 000002FC  55		   *	    push   ebp
- 000002FD  8B EC	   *	    mov    ebp, esp
- 000002FF  51		   *	    push   ecx
- 00000300  56		   *	    push   esi
- 00000301  B9 00000010			mov ecx, 16
- 00000306  BE 00000000			mov esi, 0
- 0000030B				l5690:
- 0000030B  8B FE				mov edi, esi
- 0000030D  03 7D 08				add edi, blockAdd
- 00000310  8A 07				mov al, [edi]
- 00000312  88 86 0000043C R			mov State[esi], al
+ 00000492  55		   *	    push   ebp
+ 00000493  8B EC	   *	    mov    ebp, esp
+ 00000495  51		   *	    push   ecx
+ 00000496  56		   *	    push   esi
+ 00000497  B9 00000010			mov ecx, 16
+ 0000049C  BE 00000000			mov esi, 0
+ 000004A1				l5690:
+ 000004A1  8B FE				mov edi, esi
+ 000004A3  03 7D 08				add edi, blockAdd
+ 000004A6  8A 07				mov al, [edi]
+ 000004A8  88 86 0000043C R			mov State[esi], al
 					
- 00000318  46					inc esi
- 00000319  E2 F0				loop l5690
+ 000004AE  46					inc esi
+ 000004AF  E2 F0				loop l5690
 
- 0000031B  BF 00000000			mov edi, 0
+ 000004B1  BF 00000000			mov edi, 0
 					invoke pAddRoundKey
- 00000320  E8 FFFFFF95	   *	    call   pAddRoundKey
+ 000004B6  E8 FFFFFE09	   *	    call   pAddRoundKey
 
- 00000325  B9 00000009			mov ecx, 9
- 0000032A  BE 00000001			mov esi, 1
- 0000032F				l8902:
+ 000004BB  B9 00000009			mov ecx, 9
+ 000004C0  BE 00000001			mov esi, 1
+ 000004C5				l8902:
 						invoke pByteSub
- 0000032F  E8 FFFFFFA4	   *	    call   pByteSub
+ 000004C5  E8 FFFFFE17	   *	    call   pByteSub
 						invoke pShiftRow
- 00000334  E8 FFFFFD05	   *	    call   pShiftRow
+ 000004CA  E8 FFFFFB6F	   *	    call   pShiftRow
 						invoke pMixCol
- 00000339  E8 FFFFFDBE	   *	    call   pMixCol
+ 000004CF  E8 FFFFFC32	   *	    call   pMixCol
 
- 0000033E  8B FE				mov edi, esi
- 00000340  6B FF 10				imul edi, 16
+ 000004D4  8B FE				mov edi, esi
+ 000004D6  6B FF 10				imul edi, 16
 						invoke pAddRoundKey
- 00000343  E8 FFFFFF72	   *	    call   pAddRoundKey
+ 000004D9  E8 FFFFFDE6	   *	    call   pAddRoundKey
 
- 00000348  46					inc esi
- 00000349  E2 E4				loop l8902
+ 000004DE  46					inc esi
+ 000004DF  E2 E4				loop l8902
 
 
 					invoke pByteSub
- 0000034B  E8 FFFFFF88	   *	    call   pByteSub
+ 000004E1  E8 FFFFFDFB	   *	    call   pByteSub
 					invoke pShiftRow
- 00000350  E8 FFFFFCE9	   *	    call   pShiftRow
- 00000355  BF 000000A0			mov edi, 160
+ 000004E6  E8 FFFFFB53	   *	    call   pShiftRow
+ 000004EB  BF 000000A0			mov edi, 160
 					invoke pAddRoundKey
- 0000035A  E8 FFFFFF5B	   *	    call   pAddRoundKey
+ 000004F0  E8 FFFFFDCF	   *	    call   pAddRoundKey
 
 					ret
- 0000035F  5E		   *	    pop    esi
- 00000360  59		   *	    pop    ecx
- 00000361  C9		   *	    leave  
- 00000362  C2 0004	   *	    ret    00004h
- 00000365			pEncryptBlock ENDP
+ 000004F5  5E		   *	    pop    esi
+ 000004F6  59		   *	    pop    ecx
+ 000004F7  C9		   *	    leave  
+ 000004F8  C2 0004	   *	    ret    00004h
+ 000004FB			pEncryptBlock ENDP
+
 
 
 				;---------------------------------------
- 00000365			pByteSubInv PROC
+ 000004FB			pDecryptBlock PROC blockAdd:DWORD
+				; blockAdd is the memory address of the starting index of the 
+				;    the block that is currently being encrypted
 				;---------------------------------------
- 00000365  60				pushad
- 00000366  B9 00000010			mov ecx, 16
-
- 0000036B			L2:
- 0000036B  B8 00000000			mov eax, 0
-
- 00000370  8A 81 0000043B R		mov al, State[ecx-1]; lower nibble
- 00000376  BE 00000100 R		mov esi, OFFSET sboxinv
- 0000037B  03 F0			add esi, eax
- 0000037D  8A 1E			mov bl, BYTE PTR [esi]
- 0000037F  88 99 0000043B R		mov State[ecx-1], bl
-
- 00000385  E2 E4			loop L2
-
- 00000387  61				popad
-
-
- 00000388  C3				ret
- 00000389			pByteSubInv ENDP
-
-
-				;----------------------------
- 00000389			pShiftRowInv PROC
-				; Requires = Nothing
-				;----------------------------
-				invoke pSwap, ADDR State[9], ADDR State[13]
- 00000389  68 00000449 R   *	    push   OFFSET State+00000000Dh
- 0000038E  68 00000445 R   *	    push   OFFSET State+000000009h
- 00000393  E8 FFFFFC68	   *	    call   pSwap
-				invoke pSwap, ADDR State[5], ADDR State[9]
- 00000398  68 00000445 R   *	    push   OFFSET State+000000009h
- 0000039D  68 00000441 R   *	    push   OFFSET State+000000005h
- 000003A2  E8 FFFFFC59	   *	    call   pSwap
-				invoke pSwap, ADDR State[1], ADDR State[5]
- 000003A7  68 00000441 R   *	    push   OFFSET State+000000005h
- 000003AC  68 0000043D R   *	    push   OFFSET State+000000001h
- 000003B1  E8 FFFFFC4A	   *	    call   pSwap
-
-				invoke pSwap, ADDR State[2], ADDR State[10]
- 000003B6  68 00000446 R   *	    push   OFFSET State+00000000Ah
- 000003BB  68 0000043E R   *	    push   OFFSET State+000000002h
- 000003C0  E8 FFFFFC3B	   *	    call   pSwap
-				invoke pSwap, ADDR State[6], ADDR State[14]
- 000003C5  68 0000044A R   *	    push   OFFSET State+00000000Eh
- 000003CA  68 00000442 R   *	    push   OFFSET State+000000006h
- 000003CF  E8 FFFFFC2C	   *	    call   pSwap
-
-				invoke pSwap, ADDR State[7], ADDR State[3]
- 000003D4  68 0000043F R   *	    push   OFFSET State+000000003h
- 000003D9  68 00000443 R   *	    push   OFFSET State+000000007h
- 000003DE  E8 FFFFFC1D	   *	    call   pSwap
-				invoke pSwap, ADDR State[11], ADDR State[7]
- 000003E3  68 00000443 R   *	    push   OFFSET State+000000007h
- 000003E8  68 00000447 R   *	    push   OFFSET State+00000000Bh
- 000003ED  E8 FFFFFC0E	   *	    call   pSwap
-				invoke pSwap, ADDR State[11], ADDR State[15]
- 000003F2  68 0000044B R   *	    push   OFFSET State+00000000Fh
- 000003F7  68 00000447 R   *	    push   OFFSET State+00000000Bh
- 000003FC  E8 FFFFFBFF	   *	    call   pSwap
-
- 00000401  C3			 ret
- 00000402			pShiftRowInv ENDP
-
-
-
-				;---------------------------
- 00000402			pMixColInv PROC USES eax ebx ecx edx esi edi
-				;---------------------------
- 00000402  50		   *	    push   eax
- 00000403  53		   *	    push   ebx
- 00000404  51		   *	    push   ecx
- 00000405  52		   *	    push   edx
- 00000406  56		   *	    push   esi
- 00000407  57		   *	    push   edi
- 00000408  B8 00000000			mov eax, 0
-
-
- 0000040D  B9 00000004			mov ecx, 4
- 00000412  BE 00000000			mov esi, 0
- 00000417  BB 00000000			mov ebx, 0
- 0000041C  BF 00000000			mov edi, 0
- 00000421			loop2:
- 00000421  51				push ecx
- 00000422  57				push edi
- 00000423  B9 00000004			mov ecx, 4
- 00000428  BE 00000000			mov esi, 0
-
- 0000042D				loop1: 
-						invoke pMultGalois, State[edi+0], matrixinv[0]
- 0000042D  A0 00000460 R   *	    mov    al, matrixinv
- 00000432  50		   *	    push   eax
- 00000433  8A 87 0000043C R *	    mov    al, State[edi]
- 00000439  50		   *	    push   eax
- 0000043A  E8 FFFFFC78	   *	    call   pMultGalois
- 0000043F  8A D0				mov dl, al
-
-						invoke pMultGalois, State[edi+1], matrixinv[1]
- 00000441  A0 00000461 R   *	    mov    al, matrixinv+001h
- 00000446  50		   *	    push   eax
- 00000447  8A 87 0000043D R *	    mov    al, State[edi]+001h
- 0000044D  50		   *	    push   eax
- 0000044E  E8 FFFFFC64	   *	    call   pMultGalois
- 00000453  8A F0				mov dh, al
-
-						invoke pMultGalois, State[edi+2], matrixinv[2]
- 00000455  A0 00000462 R   *	    mov    al, matrixinv+002h
- 0000045A  50		   *	    push   eax
- 0000045B  8A 87 0000043E R *	    mov    al, State[edi]+002h
- 00000461  50		   *	    push   eax
- 00000462  E8 FFFFFC50	   *	    call   pMultGalois
- 00000467  8A D8				mov bl, al
-
-						invoke pMultGalois, State[edi+3], matrixinv[3]
- 00000469  A0 00000463 R   *	    mov    al, matrixinv+003h
- 0000046E  50		   *	    push   eax
- 0000046F  8A 87 0000043F R *	    mov    al, State[edi]+003h
- 00000475  50		   *	    push   eax
- 00000476  E8 FFFFFC3C	   *	    call   pMultGalois
- 0000047B  8A F8				mov bh, al
-
- 0000047D  32 D6				xor dl, dh
- 0000047F  32 D3				xor dl, bl
- 00000481  32 D7				xor dl, bh
-
- 00000483  88 94 3E				mov temp[edi+esi], dl
-	   0000044C R
-
-						;this will be mShiftMatrix
-						invoke pSwap, ADDR matrixinv[2], ADDR matrixinv[3]
- 0000048A  68 00000463 R   *	    push   OFFSET matrixinv+000000003h
- 0000048F  68 00000462 R   *	    push   OFFSET matrixinv+000000002h
- 00000494  E8 FFFFFB67	   *	    call   pSwap
-						invoke pSwap, ADDR matrixinv[1], ADDR matrixinv[2]
- 00000499  68 00000462 R   *	    push   OFFSET matrixinv+000000002h
- 0000049E  68 00000461 R   *	    push   OFFSET matrixinv+000000001h
- 000004A3  E8 FFFFFB58	   *	    call   pSwap
-						invoke pSwap, ADDR matrixinv[0], ADDR matrixinv[1]
- 000004A8  68 00000461 R   *	    push   OFFSET matrixinv+000000001h
- 000004AD  68 00000460 R   *	    push   OFFSET matrixinv
- 000004B2  E8 FFFFFB49	   *	    call   pSwap
-
-
-
-						;invoke pSwap, ADDR State[1], ADDR State[2]
-
- 000004B7  46					inc esi
-
- 000004B8  49					dec ecx
- 000004B9  0F 85 FFFFFF6E			jne loop1
- 000004BF  5F					pop edi
- 000004C0  59					pop ecx
-
- 000004C1  83 C7 04				add edi, 4
- 000004C4  49					dec ecx
- 000004C5  0F 85 FFFFFF56		jne loop2
+ 000004FB  55		   *	    push   ebp
+ 000004FC  8B EC	   *	    mov    ebp, esp
+ 000004FE  B9 00000010			mov ecx, 16
+ 00000503  BE 00000000			mov esi, 0
+ 00000508				l7437:
+ 00000508  8B FE				mov edi, esi
+ 0000050A  03 7D 08				add edi, blockAdd
+ 0000050D  8A 07				mov al, [edi]
+ 0000050F  88 86 0000043C R			mov State[esi], al
 					
+ 00000515  46					inc esi
+ 00000516  E2 F0				loop l7437
 
- 000004CB  B9 00000010			mov ecx, 16 ; change back to 16
- 000004D0  BE 00000000			mov esi, 0
- 000004D5				L2:
-						invoke pSwap, ADDR State[esi], ADDR temp[esi]
- 000004D5  8D 86 0000044C R *	    lea    eax, temp[esi]
- 000004DB  50		   *	    push   eax
- 000004DC  8D 86 0000043C R *	    lea    eax, State[esi]
- 000004E2  50		   *	    push   eax
- 000004E3  E8 FFFFFB18	   *	    call   pSwap
- 000004E8  46					inc esi
- 000004E9  E2 EA				loop L2
-
-				ret
- 000004EB  5F		   *	    pop    edi
- 000004EC  5E		   *	    pop    esi
- 000004ED  5A		   *	    pop    edx
- 000004EE  59		   *	    pop    ecx
- 000004EF  5B		   *	    pop    ebx
- 000004F0  58		   *	    pop    eax
- 000004F1  C3		   *	    ret    00000h
- 000004F2			pMixColInv ENDP
+ 00000518  BF 000000A0			mov edi, 160
+					invoke pAddRoundKey
+ 0000051D  E8 FFFFFDA2	   *	    call   pAddRoundKey
 
 
+ 00000522  B9 00000009			mov ecx, 9
+ 00000527				l2163:
+						invoke pShiftRowInv
+ 00000527  E8 FFFFFDFD	   *	    call   pShiftRowInv
+						invoke pByteSubInv
+ 0000052C  E8 FFFFFDD4	   *	    call   pByteSubInv
+						
+ 00000531  8B F9				mov edi, ecx
+ 00000533  6B FF 10				imul edi, 16
+						invoke pAddRoundKey
+ 00000536  E8 FFFFFD89	   *	    call   pAddRoundKey
 
-				;---------------------------------------
- 000004F2			pDecryptBlock PROC
-				;---------------------------------------
+						invoke pMixColInv
+ 0000053B  E8 FFFFFE62	   *	    call   pMixColInv
+
+ 00000540  E2 E5				loop l2163
+
+					invoke pShiftRowInv
+ 00000542  E8 FFFFFDE2	   *	    call   pShiftRowInv
+					invoke pByteSubInv
+ 00000547  E8 FFFFFDB9	   *	    call   pByteSubInv
+ 0000054C  BF 00000000			mov edi, 0
+					invoke pAddRoundKey
+ 00000551  E8 FFFFFD6E	   *	    call   pAddRoundKey
+
+					ret
+ 00000556  C9		   *	    leave  
+ 00000557  C2 0004	   *	    ret    00004h
+ 0000055A			pDecryptBlock ENDP
+
+				;------------------------------------------------
+ 0000055A			pFileI PROC
+				;------------------------------------------------
+ 0000055A  BA 00001528 R		mov edx, OFFSET infile
+ 0000055F  E8 00000000 E		call OpenInputFile
+ 00000564  BA 00000528 R		mov edx, OFFSET inbuffer
+ 00000569  B9 00000800			mov ecx, FILESIZE
+ 0000056E  E8 00000000 E		call ReadFromFile
+ 00000573  E8 00000000 E		call CloseFile
+
+ 00000578  BA 00000528 R		mov edx, OFFSET inbuffer
+ 0000057D  E8 00000000 E		call WriteString
+ 00000582  E8 00000000 E		call crlf
+
+ 00000587  C3				ret
+ 00000588			pFileI ENDP
+
+				;----------------------------------------------------
+ 00000588			pFileO PROC
+				;----------------------------------------------------
+ 00000588  BA 00001528 R		mov edx, OFFSET infile
+ 0000058D  E8 00000000 E		call CreateOutputFile
+
+					; filehandle is in eax
+
+ 00000592  BA 00000D28 R		mov edx, OFFSET outbuffer
+ 00000597  B9 00000800			mov ecx, FILESIZE
+ 0000059C  E8 00000000 E		call WriteToFile
 
 
- 000004F2  C3				ret
- 000004F3			pDecryptBlock ENDP
+ 000005A1  E8 00000000 E		call CloseFile
 
 
- 000004F3			main PROC
-					;mByteSub State
-					;invoke pShiftRow
-					;invoke pMixCol
-					;invoke pRotateKey, ADDR keytest
-					;invoke pSubWord, ADDR keytest
+ 000005A6  C3				ret
+ 000005A7			pFileO ENDP
 
+
+				;----------------------------------------------------
+ 000005A7			pEncrypt PROC
+				;----------------------------------------------------
+					invoke pExpandKey
+ 000005A7  E8 FFFFFC96	   *	    call   pExpandKey
+					invoke pFileI
+ 000005AC  E8 FFFFFFA9	   *	    call   pFileI
+
+ 000005B1  8B 0D 00001680 R		mov ecx, sizeoffile
+ 000005B7  C1 E9 04			shr ecx, 4         ; divide by 16
+ 000005BA  41				inc ecx
+
+ 000005BB  BE 00000000			mov esi, 0
+ 000005C0				l8257: 
+ 000005C0  8B C6				mov eax, esi
+ 000005C2  6B C0 10				imul eax, 16
+						invoke pEncryptBlock, ADDR inbuffer[eax]
+ 000005C5  8D 80 00000528 R *	    lea    eax, inbuffer[eax]
+ 000005CB  50		   *	    push   eax
+ 000005CC  E8 FFFFFEC1	   *	    call   pEncryptBlock
+
+ 000005D1  51					push ecx
+ 000005D2  56					push esi
+
+ 000005D3  B9 00000010				mov ecx, 16
+ 000005D8  BE 00000000				mov esi, 0
+ 000005DD					l90:
+							invoke pSwap, ADDR State[esi], ADDR outbuffer[eax]
+ 000005DD  8D 80 00000D28 R *	    lea    eax, outbuffer[eax]
+ 000005E3  50		   *	    push   eax
+ 000005E4  8D 86 0000043C R *	    lea    eax, State[esi]
+ 000005EA  50		   *	    push   eax
+ 000005EB  E8 FFFFFA10	   *	    call   pSwap
+
+ 000005F0  46						inc esi
+ 000005F1  40						inc eax
+ 000005F2  E2 E9					loop l90
+
+ 000005F4  5E					pop esi
+ 000005F5  59					pop ecx
+ 000005F6  46					inc esi
+ 000005F7  E2 C7				loop l8257
+
+
+ 000005F9  C3				ret
+ 000005FA			pEncrypt ENDP
+
+
+				;----------------------------------------------------
+ 000005FA			pDecrypt PROC
+				;----------------------------------------------------
+					invoke pExpandKey
+ 000005FA  E8 FFFFFC43	   *	    call   pExpandKey
+					invoke pFileI
+ 000005FF  E8 FFFFFF56	   *	    call   pFileI
+					
+ 00000604  8B 0D 00001680 R		mov ecx, sizeoffile
+ 0000060A  C1 E9 04			shr ecx, 4         ; divide by 16
+ 0000060D  41				inc ecx
+
+
+ 0000060E  BE 00000000			mov esi, 0
+ 00000613				l91: 
+ 00000613  8B C6				mov eax, esi
+ 00000615  6B C0 10				imul eax, 16
+						invoke pDecryptBlock, ADDR inbuffer[eax]
+ 00000618  8D 80 00000528 R *	    lea    eax, inbuffer[eax]
+ 0000061E  50		   *	    push   eax
+ 0000061F  E8 FFFFFED7	   *	    call   pDecryptBlock
+
+ 00000624  51					push ecx
+ 00000625  56					push esi
+
+ 00000626  B9 00000010				mov ecx, 16
+ 0000062B  BE 00000000				mov esi, 0
+ 00000630					l87:
+							invoke pSwap, ADDR State[esi], ADDR outbuffer[eax]
+ 00000630  8D 80 00000D28 R *	    lea    eax, outbuffer[eax]
+ 00000636  50		   *	    push   eax
+ 00000637  8D 86 0000043C R *	    lea    eax, State[esi]
+ 0000063D  50		   *	    push   eax
+ 0000063E  E8 FFFFF9BD	   *	    call   pSwap
+
+ 00000643  46						inc esi
+ 00000644  40						inc eax
+ 00000645  E2 E9					loop l87
+
+ 00000647  5E					pop esi
+ 00000648  59					pop ecx
+ 00000649  46					inc esi
+ 0000064A  E2 C7				loop l91
+
+ 0000064C  C3				ret
+ 0000064D			pDecrypt ENDP
+
+
+				;----------------------------------------------------
+ 0000064D			pMenu PROC
+				;----------------------------------------------------
+					
+					; maybe put this in a loop?
+					
+ 0000064D  BA 00001628 R		mov edx, OFFSET inmsg
+ 00000652  E8 00000000 E		call WriteString
+ 00000657  BA 00001528 R		mov edx, OFFSET infile
+ 0000065C  B9 00000100			mov ecx, 256
+ 00000661  E8 00000000 E		call ReadString
+
+ 00000666  BA 00001652 R		mov edx, OFFSET keymsg
+ 0000066B  E8 00000000 E		call WriteString
+ 00000670  BA 00000468 R		mov edx, OFFSET key
+ 00000675  B9 00000010			mov ecx, 16
+ 0000067A  E8 00000000 E		call ReadString
+
+ 0000067F  BA 00001662 R		mov edx, OFFSET filesizemsg
+ 00000684  E8 00000000 E		call WriteString
+ 00000689  E8 00000000 E		call Readint
+ 0000068E  A3 00001680 R		mov sizeoffile, eax
+
+ 00000693  BA 00001684 R		mov edx, OFFSET menu
+ 00000698  E8 00000000 E		call WriteString
+ 0000069D  E8 00000000 E		call ReadInt
+
+					.IF eax == 1
+ 000006A2  83 F8 01	   *	    cmp    eax, 001h
+ 000006A5  75 07	   *	    jne    @C0003
+						invoke pEncrypt
+ 000006A7  E8 FFFFFEFB	   *	    call   pEncrypt
+					.ELSEIF eax == 2
+ 000006AC  EB 13	   *	    jmp    @C0005
+ 000006AE		   *@C0003:
+ 000006AE  83 F8 02	   *	    cmp    eax, 002h
+ 000006B1  75 07	   *	    jne    @C0006
+						invoke pDecrypt
+ 000006B3  E8 FFFFFF42	   *	    call   pDecrypt
+					.ELSE
+ 000006B8  EB 07	   *	    jmp    @C0008
+ 000006BA		   *@C0006:
+						exit
+ 000006BA  6A 00	   *	    push   +000000000h
+ 000006BC  E8 00000000 E   *	    call   ExitProcess
+					.ENDIF
+ 000006C1		   *@C0008:
+ 000006C1		   *@C0005:
+
+ 000006C1  C3				ret
+ 000006C2			pMENU ENDP
+
+ 000006C2			main PROC
 					;invoke pExpandkey                ; Expanding the key works.
+					;invoke pEncryptBlock, ADDR inbuffer[0]
+					;invoke pDecryptBlock, ADDR outbuffer[0]
 
-					;invoke pEncryptBlock, ADDR plaintext[0]
+					invoke pMenu
+ 000006C2  E8 FFFFFF86	   *	    call   pMenu
+
+
+					; not reading file into inbuffer.
 					
-					invoke pMixColInv
- 000004F3  E8 FFFFFF0A	   *	    call   pMixColInv
-
- 000004F8  E8 00000000 E		call Dumpregs
+ 000006C7  E8 00000000 E		call Dumpregs
 
 					exit
- 000004FD  6A 00	   *	    push   +000000000h
- 000004FF  E8 00000000 E   *	    call   ExitProcess
- 00000504			main ENDP
+ 000006CC  6A 00	   *	    push   +000000000h
+ 000006CE  E8 00000000 E   *	    call   ExitProcess
+ 000006D3			main ENDP
 
 
 
 
 				END main
-Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/13/15 15:09:15
+Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/13/15 19:49:00
 AddTwo.asm						     Symbols 2 - 1
 
 
-
-
-Macros:
-
-                N a m e                 Type
-
-mAddRoundKey . . . . . . . . . .	Proc
-mByteSub . . . . . . . . . . . .	Proc
-mShiftMatrix . . . . . . . . . .	Proc
-mSwap  . . . . . . . . . . . . .	Proc
 
 
 Structures and Unions:
@@ -1217,8 +1427,8 @@ Segments and Groups:
 
 FLAT . . . . . . . . . . . . . .	GROUP
 STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
-_DATA  . . . . . . . . . . . . .	32 Bit	 0000063A Para	  Public  'DATA'	
-_TEXT  . . . . . . . . . . . . .	32 Bit	 00000504 Para	  Public  'CODE'	
+_DATA  . . . . . . . . . . . . .	32 Bit	 000016A9 Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 000006D3 Para	  Public  'CODE'	
 
 
 Procedures, parameters, and locals:
@@ -1325,38 +1535,51 @@ WriteStackFrame  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 WriteString  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteToFile  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteWindowsMsg  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-main . . . . . . . . . . . . . .	P Near	 000004F3 _TEXT	Length= 00000011 Public STDCALL
-pAddExpKey . . . . . . . . . . .	P Near	 00000221 _TEXT	Length= 00000017 Public STDCALL
-  L16  . . . . . . . . . . . . .	L Near	 0000022A _TEXT	
-pAddRoundKey . . . . . . . . . .	P Near	 000002BA _TEXT	Length= 0000001E Public STDCALL
-  L1 . . . . . . . . . . . . . .	L Near	 000002C5 _TEXT	
-pByteSubInv  . . . . . . . . . .	P Near	 00000365 _TEXT	Length= 00000024 Public STDCALL
-  L2 . . . . . . . . . . . . . .	L Near	 0000036B _TEXT	
-pByteSub . . . . . . . . . . . .	P Near	 000002D8 _TEXT	Length= 00000024 Public STDCALL
-  L2 . . . . . . . . . . . . . .	L Near	 000002DE _TEXT	
-pDecryptBlock  . . . . . . . . .	P Near	 000004F2 _TEXT	Length= 00000001 Public STDCALL
-pEK  . . . . . . . . . . . . . .	P Near	 000001EC _TEXT	Length= 00000035 Public STDCALL
-  a  . . . . . . . . . . . . . .	Byte	 bp + 00000008
-pEncryptBlock  . . . . . . . . .	P Near	 000002FC _TEXT	Length= 00000069 Public STDCALL
+main . . . . . . . . . . . . . .	P Near	 000006C2 _TEXT	Length= 00000011 Public STDCALL
+pAddExpKey . . . . . . . . . . .	P Near	 0000022B _TEXT	Length= 00000017 Public STDCALL
+  L16  . . . . . . . . . . . . .	L Near	 00000234 _TEXT	
+pAddRoundKey . . . . . . . . . .	P Near	 000002C4 _TEXT	Length= 0000001D Public STDCALL
+  L1 . . . . . . . . . . . . . .	L Near	 000002CF _TEXT	
+pByteSubInv  . . . . . . . . . .	P Near	 00000305 _TEXT	Length= 00000024 Public STDCALL
+  L2 . . . . . . . . . . . . . .	L Near	 0000030B _TEXT	
+pByteSub . . . . . . . . . . . .	P Near	 000002E1 _TEXT	Length= 00000024 Public STDCALL
+  L2 . . . . . . . . . . . . . .	L Near	 000002E7 _TEXT	
+pDecryptBlock  . . . . . . . . .	P Near	 000004FB _TEXT	Length= 0000005F Public STDCALL
   blockAdd . . . . . . . . . . .	DWord	 bp + 00000008
-  l5690  . . . . . . . . . . . .	L Near	 0000030B _TEXT	
-  l8902  . . . . . . . . . . . .	L Near	 0000032F _TEXT	
-pExpandKey . . . . . . . . . . .	P Near	 00000238 _TEXT	Length= 00000082 Public STDCALL
-  l5 . . . . . . . . . . . . . .	L Near	 00000242 _TEXT	
-  l3 . . . . . . . . . . . . . .	L Near	 0000025B _TEXT	
-  l32  . . . . . . . . . . . . .	L Near	 00000299 _TEXT	
-pMixColInv . . . . . . . . . . .	P Near	 00000402 _TEXT	Length= 000000F0 Public STDCALL
-  loop2  . . . . . . . . . . . .	L Near	 00000421 _TEXT	
-  loop1  . . . . . . . . . . . .	L Near	 0000042D _TEXT	
-  L2 . . . . . . . . . . . . . .	L Near	 000004D5 _TEXT	
-pMixCol  . . . . . . . . . . . .	P Near	 000000FC _TEXT	Length= 000000F0 Public STDCALL
-  loop2  . . . . . . . . . . . .	L Near	 0000011B _TEXT	
-  loop1  . . . . . . . . . . . .	L Near	 00000127 _TEXT	
-  L2 . . . . . . . . . . . . . .	L Near	 000001CF _TEXT	
-pMultGalois  . . . . . . . . . .	P Near	 000000B7 _TEXT	Length= 00000045 Public STDCALL
+  l7437  . . . . . . . . . . . .	L Near	 00000508 _TEXT	
+  l2163  . . . . . . . . . . . .	L Near	 00000527 _TEXT	
+pDecrypt . . . . . . . . . . . .	P Near	 000005FA _TEXT	Length= 00000053 Public STDCALL
+  l91  . . . . . . . . . . . . .	L Near	 00000613 _TEXT	
+  l87  . . . . . . . . . . . . .	L Near	 00000630 _TEXT	
+pEK  . . . . . . . . . . . . . .	P Near	 000001F6 _TEXT	Length= 00000035 Public STDCALL
+  a  . . . . . . . . . . . . . .	Byte	 bp + 00000008
+pEncryptBlock  . . . . . . . . .	P Near	 00000492 _TEXT	Length= 00000069 Public STDCALL
+  blockAdd . . . . . . . . . . .	DWord	 bp + 00000008
+  l5690  . . . . . . . . . . . .	L Near	 000004A1 _TEXT	
+  l8902  . . . . . . . . . . . .	L Near	 000004C5 _TEXT	
+pEncrypt . . . . . . . . . . . .	P Near	 000005A7 _TEXT	Length= 00000053 Public STDCALL
+  l8257  . . . . . . . . . . . .	L Near	 000005C0 _TEXT	
+  l90  . . . . . . . . . . . . .	L Near	 000005DD _TEXT	
+pExpandKey . . . . . . . . . . .	P Near	 00000242 _TEXT	Length= 00000082 Public STDCALL
+  l5 . . . . . . . . . . . . . .	L Near	 0000024C _TEXT	
+  l3 . . . . . . . . . . . . . .	L Near	 00000265 _TEXT	
+  l32  . . . . . . . . . . . . .	L Near	 000002A3 _TEXT	
+pFileI . . . . . . . . . . . . .	P Near	 0000055A _TEXT	Length= 0000002E Public STDCALL
+pFileO . . . . . . . . . . . . .	P Near	 00000588 _TEXT	Length= 0000001F Public STDCALL
+pMenu  . . . . . . . . . . . . .	P Near	 0000064D _TEXT	Length= 00000075 Public STDCALL
+pMixColInv . . . . . . . . . . .	P Near	 000003A2 _TEXT	Length= 000000F0 Public STDCALL
+  loop2  . . . . . . . . . . . .	L Near	 000003C1 _TEXT	
+  loop1  . . . . . . . . . . . .	L Near	 000003CD _TEXT	
+  L2 . . . . . . . . . . . . . .	L Near	 00000475 _TEXT	
+pMixCol  . . . . . . . . . . . .	P Near	 00000106 _TEXT	Length= 000000F0 Public STDCALL
+  loop2  . . . . . . . . . . . .	L Near	 00000125 _TEXT	
+  loop1  . . . . . . . . . . . .	L Near	 00000131 _TEXT	
+  L2 . . . . . . . . . . . . . .	L Near	 000001D9 _TEXT	
+pMultGalois  . . . . . . . . . .	P Near	 000000B7 _TEXT	Length= 0000004F Public STDCALL
   a  . . . . . . . . . . . . . .	Byte	 bp + 00000008
   b  . . . . . . . . . . . . . .	Byte	 bp + 0000000C
-pShiftRowInv . . . . . . . . . .	P Near	 00000389 _TEXT	Length= 00000079 Public STDCALL
+  quit . . . . . . . . . . . . .	L Near	 000000FF _TEXT	
+pShiftRowInv . . . . . . . . . .	P Near	 00000329 _TEXT	Length= 00000079 Public STDCALL
 pShiftRow  . . . . . . . . . . .	P Near	 0000003E _TEXT	Length= 00000079 Public STDCALL
 pSubWord . . . . . . . . . . . .	P Near	 0000001D _TEXT	Length= 00000021 Public STDCALL
   l2 . . . . . . . . . . . . . .	L Near	 00000024 _TEXT	
@@ -1397,6 +1620,7 @@ ENABLE_WINDOW_INPUT  . . . . . .	Number	 00000008h
 ENABLE_WRAP_AT_EOL_OUTPUT  . . .	Number	 00000002h   
 ENHANCED_KEY . . . . . . . . . .	Number	 00000100h   
 FALSE  . . . . . . . . . . . . .	Number	 00000000h   
+FILESIZE . . . . . . . . . . . .	Number	 00000800h   
 FILE_APPEND_DATA . . . . . . . .	Number	 00000004h   
 FILE_ATTRIBUTE_ARCHIVE . . . . .	Number	 00000020h   
 FILE_ATTRIBUTE_COMPRESSED  . . .	Number	 00000800h   
@@ -1586,13 +1810,17 @@ WriteConsole . . . . . . . . . .	Text   	 WriteConsoleA
 black  . . . . . . . . . . . . .	Number	 00000000h   
 blue . . . . . . . . . . . . . .	Number	 00000001h   
 brown  . . . . . . . . . . . . .	Number	 00000006h   
-ciphertext . . . . . . . . . . .	Byte	 00000539 _DATA	
 cyan . . . . . . . . . . . . . .	Number	 00000003h   
 etable . . . . . . . . . . . . .	Byte	 00000200 _DATA	
 exit . . . . . . . . . . . . . .	Text   	 INVOKE ExitProcess,0
 expKey . . . . . . . . . . . . .	Byte	 00000478 _DATA	
+filesizemsg  . . . . . . . . . .	Byte	 00001662 _DATA	
 gray . . . . . . . . . . . . . .	Number	 00000008h   
 green  . . . . . . . . . . . . .	Number	 00000002h   
+inbuffer . . . . . . . . . . . .	Byte	 00000528 _DATA	
+infile . . . . . . . . . . . . .	Byte	 00001528 _DATA	
+inmsg  . . . . . . . . . . . . .	Byte	 00001628 _DATA	
+keymsg . . . . . . . . . . . . .	Byte	 00001652 _DATA	
 keytest  . . . . . . . . . . . .	Byte	 00000464 _DATA	
 key  . . . . . . . . . . . . . .	Byte	 00000468 _DATA	
 lightBlue  . . . . . . . . . . .	Number	 00000009h   
@@ -1605,15 +1833,16 @@ ltable . . . . . . . . . . . . .	Byte	 00000300 _DATA
 magenta  . . . . . . . . . . . .	Number	 00000005h   
 matrixinv  . . . . . . . . . . .	Byte	 00000460 _DATA	
 matrix . . . . . . . . . . . . .	Byte	 0000045C _DATA	
-plaintext  . . . . . . . . . . .	Byte	 00000528 _DATA	
+menu . . . . . . . . . . . . . .	Byte	 00001684 _DATA	
+outbuffer  . . . . . . . . . . .	Byte	 00000D28 _DATA	
 red  . . . . . . . . . . . . . .	Number	 00000004h   
 sboxinv  . . . . . . . . . . . .	Byte	 00000100 _DATA	
 sbox . . . . . . . . . . . . . .	Byte	 00000000 _DATA	
+sizeoffile . . . . . . . . . . .	DWord	 00001680 _DATA	
 temp . . . . . . . . . . . . . .	Byte	 0000044C _DATA	
 white  . . . . . . . . . . . . .	Number	 0000000Fh   
 wsprintf . . . . . . . . . . . .	Text   	 wsprintfA
 yellow . . . . . . . . . . . . .	Number	 0000000Eh   
-zero . . . . . . . . . . . . . .	Byte	 00000639 _DATA	
 
 	   0 Warnings
 	   0 Errors

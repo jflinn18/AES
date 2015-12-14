@@ -7,66 +7,12 @@
 ;
 
 
-
-
 ;http://www.adamberent.com/documents/AESbyExample.pdf
-
-
-
-
 
 
 INCLUDE Irvine32.inc
 
-
-mAddRoundKey MACRO State:REQ, expKey:REQ   ; expKey is the 16 bytes of the Expanded Key
-	pushad
-	mov ecx, 16
-L1:
-	mov al, expKey[ecx]
-	xor State[ecx], al 
-	loop L1
-
-	popad
-
-ENDM
-
-
-mByteSub MACRO State:REQ
-	pushad
-	mov ecx, 16
-
-L2:
-	mov eax, 0
-
-	mov al, State[ecx-1]; lower nibble
-	mov esi, OFFSET sbox
-	add esi, eax
-	mov bl, BYTE PTR [esi]
-	mov State[ecx-1], bl
-
-	loop L2
-
-	popad
-
-ENDM
-
-mSwap MACRO y:REQ, x:REQ
-	push eax
-	mov al, y
-	mov ah, x
-	mov y, ah
-	mov x, al
-	pop eax
-ENDM
-
-mShiftMatrix MACRO
-
-	mSwap matrix[2], matrix[3]
-	mSwap matrix[1], matrix[2]
-	mSwap matrix[0], matrix[1]
-
-ENDM
+FILESIZE = 2048
 
 .data
 ; S-Box Lookup Table
@@ -142,8 +88,10 @@ ltable	BYTE	000h, 000h, 019h, 001h, 032h, 002h, 01Ah, 0C6h, 04Bh, 0C7h, 01Bh, 06
 Rcon	DWORD	01000000h, 02000000h, 04000000h, 08000000h, 10000000h, 20000000h, 40000000h, 80000000h, 1B000000h, 36000000h
 		DWORD	6c000000h, 0d8000000h, 0ab000000h, 4d000000h, 9a000000h
 
-;State BYTE 1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh,1h
-State BYTE 4 DUP(04h, 66h, 81h, 0e5h)
+;State BYTE 0h,1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh
+State BYTE 0fh, 0eh, 0dh, 0ch, 0bh, 0ah, 9h,8h,7h,6h,5h,4h,3h,2h,1h,0h
+;State BYTE 4 DUP(0,1,2,3)
+;State BYTE 4 DUP(04h, 66h, 81h, 0e5h)
 ;State BYTE 4 DUP(0d4h, 0bfh, 5dh, 30h)
 temp BYTE 16 DUP(0)
 matrix BYTE 2,3,1,1
@@ -155,13 +103,22 @@ key BYTE 0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3
 expKey BYTE 176 DUP(0)
 
 
-;plaintext BYTE 256 DUP(0) ; we are so going bigger!!!!!!!!!!!!!
-plaintext BYTE "mississippiState", 0
-ciphertext BYTE 256 DUP(0)
+inbuffer BYTE FILESIZE DUP(0)
+;inbuffer BYTE "mississippiState",0
+outbuffer BYTE FILESIZE DUP(0)
 
 
+infile BYTE 256 DUP(0)
 
-zero BYTE 0
+inmsg BYTE "Enter the file name containing the text: ",0
+keymsg BYTE "Enter the key: ",0
+filesizemsg BYTE "Enter size of file in bytes: ",0
+
+sizeoffile DWORD ?
+
+menu BYTE "1. Encrypt", 0ah, 0dh, "2. Decrypt", 0ah, 0dh, "3. Exit", 0ah, 0dh, ">> ",0
+
+
 .code
 
 
@@ -225,6 +182,10 @@ pShiftRow ENDP
 pMultGalois PROC USES esi ebx edx a:BYTE, b:BYTE
 ; Returns = in al
 ;------------------------------
+.IF (a == 0)
+mov al, 0
+jmp quit
+.ENDIF
 mov eax, 0
 mov esi, OFFSET ltable
 mov al, a
@@ -241,7 +202,7 @@ mov bl, BYTE PTR [esi]
 
 mov dh, bl
 
-add dl, dh      ; L + L
+adc dl, dh      ; L + L
 
 mov eax, 0
 mov esi, OFFSET etable
@@ -250,6 +211,7 @@ mov al, dl
 adc esi, eax
 mov al, BYTE PTR [esi]
 
+quit:
 ret
 pMultGalois ENDP
 
@@ -451,10 +413,10 @@ pAddRoundKey PROC
 	mov ecx, 16
 	mov esi, 0
 L1:
-	add edi, esi
 	mov al, expKey[edi]
 	xor State[esi], al 
 	
+	inc edi
 	inc esi
 	loop L1
 
@@ -486,50 +448,6 @@ L2:
 	ret
 pByteSub ENDP
 
-
-;----------------------------
-pEncryptBlock PROC USES ecx esi blockAdd:DWORD
-; blockAdd is the memory address of the starting index of the 
-;    the block that is currently being encrypted
-;----------------------------
-	 
-	; loop and move the blockAdd value into State
-	mov ecx, 16
-	mov esi, 0
-	l5690:
-		mov edi, esi
-		add edi, blockAdd
-		mov al, [edi]
-		mov State[esi], al
-	
-		inc esi
-		loop l5690
-
-	mov edi, 0
-	invoke pAddRoundKey
-
-	mov ecx, 9
-	mov esi, 1
-	l8902:
-		invoke pByteSub
-		invoke pShiftRow
-		invoke pMixCol
-
-		mov edi, esi
-		imul edi, 16
-		invoke pAddRoundKey
-
-		inc esi
-		loop l8902
-
-
-	invoke pByteSub
-	invoke pShiftRow
-	mov edi, 160
-	invoke pAddRoundKey
-
-	ret
-pEncryptBlock ENDP
 
 
 ;---------------------------------------
@@ -644,28 +562,254 @@ pMixColInv ENDP
 
 
 
-;---------------------------------------
-pDecryptBlock PROC
-;---------------------------------------
+;----------------------------
+pEncryptBlock PROC USES ecx esi blockAdd:DWORD
+; blockAdd is the memory address of the starting index of the 
+;    the block that is currently being encrypted
+;----------------------------
+	 
+	; loop and move the blockAdd value into State
+	mov ecx, 16
+	mov esi, 0
+	l5690:
+		mov edi, esi
+		add edi, blockAdd
+		mov al, [edi]
+		mov State[esi], al
+	
+		inc esi
+		loop l5690
 
+	mov edi, 0
+	invoke pAddRoundKey
+
+	mov ecx, 9
+	mov esi, 1
+	l8902:
+		invoke pByteSub
+		invoke pShiftRow
+		invoke pMixCol
+
+		mov edi, esi
+		imul edi, 16
+		invoke pAddRoundKey
+
+		inc esi
+		loop l8902
+
+
+	invoke pByteSub
+	invoke pShiftRow
+	mov edi, 160
+	invoke pAddRoundKey
+
+	ret
+pEncryptBlock ENDP
+
+
+
+;---------------------------------------
+pDecryptBlock PROC blockAdd:DWORD
+; blockAdd is the memory address of the starting index of the 
+;    the block that is currently being encrypted
+;---------------------------------------
+	mov ecx, 16
+	mov esi, 0
+	l7437:
+		mov edi, esi
+		add edi, blockAdd
+		mov al, [edi]
+		mov State[esi], al
+	
+		inc esi
+		loop l7437
+
+	mov edi, 160
+	invoke pAddRoundKey
+
+
+	mov ecx, 9
+	l2163:
+		invoke pShiftRowInv
+		invoke pByteSubInv
+		
+		mov edi, ecx
+		imul edi, 16
+		invoke pAddRoundKey
+
+		invoke pMixColInv
+
+		loop l2163
+
+	invoke pShiftRowInv
+	invoke pByteSubInv
+	mov edi, 0
+	invoke pAddRoundKey
 
 	ret
 pDecryptBlock ENDP
 
+;------------------------------------------------
+pFileI PROC
+;------------------------------------------------
+	mov edx, OFFSET infile
+	call OpenInputFile
+	mov edx, OFFSET inbuffer
+	mov ecx, FILESIZE
+	call ReadFromFile
+	call CloseFile
+
+	mov edx, OFFSET inbuffer
+	call WriteString
+	call crlf
+
+	ret
+pFileI ENDP
+
+;----------------------------------------------------
+pFileO PROC
+;----------------------------------------------------
+	mov edx, OFFSET infile
+	call CreateOutputFile
+
+	; filehandle is in eax
+
+	mov edx, OFFSET outbuffer
+	mov ecx, FILESIZE
+	call WriteToFile
+
+
+	call CloseFile
+
+
+	ret
+pFileO ENDP
+
+
+;----------------------------------------------------
+pEncrypt PROC
+;----------------------------------------------------
+	invoke pExpandKey
+	invoke pFileI
+
+	mov ecx, sizeoffile
+	shr ecx, 4         ; divide by 16
+	inc ecx
+
+	mov esi, 0
+	l8257: 
+		mov eax, esi
+		imul eax, 16
+		invoke pEncryptBlock, ADDR inbuffer[eax]
+
+		push ecx
+		push esi
+
+		mov ecx, 16
+		mov esi, 0
+		l90:
+			invoke pSwap, ADDR State[esi], ADDR outbuffer[eax]
+
+			inc esi
+			inc eax
+			loop l90
+
+		pop esi
+		pop ecx
+		inc esi
+		loop l8257
+
+
+	ret
+pEncrypt ENDP
+
+
+;----------------------------------------------------
+pDecrypt PROC
+;----------------------------------------------------
+	invoke pExpandKey
+	invoke pFileI
+	
+	mov ecx, sizeoffile
+	shr ecx, 4         ; divide by 16
+	inc ecx
+
+
+	mov esi, 0
+	l91: 
+		mov eax, esi
+		imul eax, 16
+		invoke pDecryptBlock, ADDR inbuffer[eax]
+
+		push ecx
+		push esi
+
+		mov ecx, 16
+		mov esi, 0
+		l87:
+			invoke pSwap, ADDR State[esi], ADDR outbuffer[eax]
+
+			inc esi
+			inc eax
+			loop l87
+
+		pop esi
+		pop ecx
+		inc esi
+		loop l91
+
+	ret
+pDecrypt ENDP
+
+
+;----------------------------------------------------
+pMenu PROC
+;----------------------------------------------------
+	
+	; maybe put this in a loop?
+	
+	mov edx, OFFSET inmsg
+	call WriteString
+	mov edx, OFFSET infile
+	mov ecx, 256
+	call ReadString
+
+	mov edx, OFFSET keymsg
+	call WriteString
+	mov edx, OFFSET key
+	mov ecx, 16
+	call ReadString
+
+	mov edx, OFFSET filesizemsg
+	call WriteString
+	call Readint
+	mov sizeoffile, eax
+
+	mov edx, OFFSET menu
+	call WriteString
+	call ReadInt
+
+	.IF eax == 1
+		invoke pEncrypt
+	.ELSEIF eax == 2
+		invoke pDecrypt
+	.ELSE
+		exit
+	.ENDIF
+
+	ret
+pMENU ENDP
 
 main PROC
-	;mByteSub State
-	;invoke pShiftRow
-	;invoke pMixCol
-	;invoke pRotateKey, ADDR keytest
-	;invoke pSubWord, ADDR keytest
-
 	;invoke pExpandkey                ; Expanding the key works.
+	;invoke pEncryptBlock, ADDR inbuffer[0]
+	;invoke pDecryptBlock, ADDR outbuffer[0]
 
-	;invoke pEncryptBlock, ADDR plaintext[0]
+	invoke pMenu
+
+
+	; problem with reading into a file. and also transfering the data from the state to the outbuffer.
 	
-	invoke pMixColInv
-
 	call Dumpregs
 
 	exit
