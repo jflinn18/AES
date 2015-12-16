@@ -654,10 +654,14 @@ pFileI PROC
 ;------------------------------------------------
 	mov edx, OFFSET infile
 	call OpenInputFile
+	mov edi, eax                ; filehandle 
 	mov edx, OFFSET inbuffer
 	mov ecx, FILESIZE
 	call ReadFromFile
+	mov eax, edi
 	call CloseFile
+
+	; Debugging purposes???
 
 	mov edx, OFFSET inbuffer
 	call WriteString
@@ -700,7 +704,9 @@ pEncrypt PROC
 	l8257: 
 		mov eax, esi
 		imul eax, 16
+		push eax
 		invoke pEncryptBlock, ADDR inbuffer[eax]
+		pop eax
 
 		push ecx
 		push esi
@@ -708,7 +714,9 @@ pEncrypt PROC
 		mov ecx, 16
 		mov esi, 0
 		l90:
+			push eax
 			invoke pSwap, ADDR State[esi], ADDR outbuffer[eax]
+			pop eax
 
 			inc esi
 			inc eax

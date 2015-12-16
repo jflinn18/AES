@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/13/15 19:49:00
+Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/16/15 10:43:57
 AddTwo.asm						     Page 1 - 1
 
 
@@ -1131,209 +1131,217 @@ AddTwo.asm						     Page 1 - 1
 				;------------------------------------------------
  0000055A  BA 00001528 R		mov edx, OFFSET infile
  0000055F  E8 00000000 E		call OpenInputFile
- 00000564  BA 00000528 R		mov edx, OFFSET inbuffer
- 00000569  B9 00000800			mov ecx, FILESIZE
- 0000056E  E8 00000000 E		call ReadFromFile
- 00000573  E8 00000000 E		call CloseFile
+ 00000564  8B F8			mov edi, eax                ; filehandle 
+ 00000566  BA 00000528 R		mov edx, OFFSET inbuffer
+ 0000056B  B9 00000800			mov ecx, FILESIZE
+ 00000570  E8 00000000 E		call ReadFromFile
+ 00000575  8B C7			mov eax, edi
+ 00000577  E8 00000000 E		call CloseFile
 
- 00000578  BA 00000528 R		mov edx, OFFSET inbuffer
- 0000057D  E8 00000000 E		call WriteString
- 00000582  E8 00000000 E		call crlf
+					; Debugging purposes???
 
- 00000587  C3				ret
- 00000588			pFileI ENDP
+ 0000057C  BA 00000528 R		mov edx, OFFSET inbuffer
+ 00000581  E8 00000000 E		call WriteString
+ 00000586  E8 00000000 E		call crlf
+
+ 0000058B  C3				ret
+ 0000058C			pFileI ENDP
 
 				;----------------------------------------------------
- 00000588			pFileO PROC
+ 0000058C			pFileO PROC
 				;----------------------------------------------------
- 00000588  BA 00001528 R		mov edx, OFFSET infile
- 0000058D  E8 00000000 E		call CreateOutputFile
+ 0000058C  BA 00001528 R		mov edx, OFFSET infile
+ 00000591  E8 00000000 E		call CreateOutputFile
 
 					; filehandle is in eax
 
- 00000592  BA 00000D28 R		mov edx, OFFSET outbuffer
- 00000597  B9 00000800			mov ecx, FILESIZE
- 0000059C  E8 00000000 E		call WriteToFile
+ 00000596  BA 00000D28 R		mov edx, OFFSET outbuffer
+ 0000059B  B9 00000800			mov ecx, FILESIZE
+ 000005A0  E8 00000000 E		call WriteToFile
 
 
- 000005A1  E8 00000000 E		call CloseFile
+ 000005A5  E8 00000000 E		call CloseFile
 
 
- 000005A6  C3				ret
- 000005A7			pFileO ENDP
+ 000005AA  C3				ret
+ 000005AB			pFileO ENDP
 
 
 				;----------------------------------------------------
- 000005A7			pEncrypt PROC
+ 000005AB			pEncrypt PROC
 				;----------------------------------------------------
 					invoke pExpandKey
- 000005A7  E8 FFFFFC96	   *	    call   pExpandKey
+ 000005AB  E8 FFFFFC92	   *	    call   pExpandKey
 					invoke pFileI
- 000005AC  E8 FFFFFFA9	   *	    call   pFileI
+ 000005B0  E8 FFFFFFA5	   *	    call   pFileI
 
- 000005B1  8B 0D 00001680 R		mov ecx, sizeoffile
- 000005B7  C1 E9 04			shr ecx, 4         ; divide by 16
- 000005BA  41				inc ecx
+ 000005B5  8B 0D 00001680 R		mov ecx, sizeoffile
+ 000005BB  C1 E9 04			shr ecx, 4         ; divide by 16
+ 000005BE  41				inc ecx
 
- 000005BB  BE 00000000			mov esi, 0
- 000005C0				l8257: 
- 000005C0  8B C6				mov eax, esi
- 000005C2  6B C0 10				imul eax, 16
+ 000005BF  BE 00000000			mov esi, 0
+ 000005C4				l8257: 
+ 000005C4  8B C6				mov eax, esi
+ 000005C6  6B C0 10				imul eax, 16
+ 000005C9  50					push eax
 						invoke pEncryptBlock, ADDR inbuffer[eax]
- 000005C5  8D 80 00000528 R *	    lea    eax, inbuffer[eax]
- 000005CB  50		   *	    push   eax
- 000005CC  E8 FFFFFEC1	   *	    call   pEncryptBlock
+ 000005CA  8D 80 00000528 R *	    lea    eax, inbuffer[eax]
+ 000005D0  50		   *	    push   eax
+ 000005D1  E8 FFFFFEBC	   *	    call   pEncryptBlock
+ 000005D6  58					pop eax
 
- 000005D1  51					push ecx
- 000005D2  56					push esi
+ 000005D7  51					push ecx
+ 000005D8  56					push esi
 
- 000005D3  B9 00000010				mov ecx, 16
- 000005D8  BE 00000000				mov esi, 0
- 000005DD					l90:
+ 000005D9  B9 00000010				mov ecx, 16
+ 000005DE  BE 00000000				mov esi, 0
+ 000005E3					l90:
+ 000005E3  50						push eax
 							invoke pSwap, ADDR State[esi], ADDR outbuffer[eax]
- 000005DD  8D 80 00000D28 R *	    lea    eax, outbuffer[eax]
- 000005E3  50		   *	    push   eax
- 000005E4  8D 86 0000043C R *	    lea    eax, State[esi]
+ 000005E4  8D 80 00000D28 R *	    lea    eax, outbuffer[eax]
  000005EA  50		   *	    push   eax
- 000005EB  E8 FFFFFA10	   *	    call   pSwap
+ 000005EB  8D 86 0000043C R *	    lea    eax, State[esi]
+ 000005F1  50		   *	    push   eax
+ 000005F2  E8 FFFFFA09	   *	    call   pSwap
+ 000005F7  58						pop eax
 
- 000005F0  46						inc esi
- 000005F1  40						inc eax
- 000005F2  E2 E9					loop l90
+ 000005F8  46						inc esi
+ 000005F9  40						inc eax
+ 000005FA  E2 E7					loop l90
 
- 000005F4  5E					pop esi
- 000005F5  59					pop ecx
- 000005F6  46					inc esi
- 000005F7  E2 C7				loop l8257
+ 000005FC  5E					pop esi
+ 000005FD  59					pop ecx
+ 000005FE  46					inc esi
+ 000005FF  E2 C3				loop l8257
 
 
- 000005F9  C3				ret
- 000005FA			pEncrypt ENDP
+ 00000601  C3				ret
+ 00000602			pEncrypt ENDP
 
 
 				;----------------------------------------------------
- 000005FA			pDecrypt PROC
+ 00000602			pDecrypt PROC
 				;----------------------------------------------------
 					invoke pExpandKey
- 000005FA  E8 FFFFFC43	   *	    call   pExpandKey
+ 00000602  E8 FFFFFC3B	   *	    call   pExpandKey
 					invoke pFileI
- 000005FF  E8 FFFFFF56	   *	    call   pFileI
+ 00000607  E8 FFFFFF4E	   *	    call   pFileI
 					
- 00000604  8B 0D 00001680 R		mov ecx, sizeoffile
- 0000060A  C1 E9 04			shr ecx, 4         ; divide by 16
- 0000060D  41				inc ecx
+ 0000060C  8B 0D 00001680 R		mov ecx, sizeoffile
+ 00000612  C1 E9 04			shr ecx, 4         ; divide by 16
+ 00000615  41				inc ecx
 
 
- 0000060E  BE 00000000			mov esi, 0
- 00000613				l91: 
- 00000613  8B C6				mov eax, esi
- 00000615  6B C0 10				imul eax, 16
+ 00000616  BE 00000000			mov esi, 0
+ 0000061B				l91: 
+ 0000061B  8B C6				mov eax, esi
+ 0000061D  6B C0 10				imul eax, 16
 						invoke pDecryptBlock, ADDR inbuffer[eax]
- 00000618  8D 80 00000528 R *	    lea    eax, inbuffer[eax]
- 0000061E  50		   *	    push   eax
- 0000061F  E8 FFFFFED7	   *	    call   pDecryptBlock
+ 00000620  8D 80 00000528 R *	    lea    eax, inbuffer[eax]
+ 00000626  50		   *	    push   eax
+ 00000627  E8 FFFFFECF	   *	    call   pDecryptBlock
 
- 00000624  51					push ecx
- 00000625  56					push esi
+ 0000062C  51					push ecx
+ 0000062D  56					push esi
 
- 00000626  B9 00000010				mov ecx, 16
- 0000062B  BE 00000000				mov esi, 0
- 00000630					l87:
+ 0000062E  B9 00000010				mov ecx, 16
+ 00000633  BE 00000000				mov esi, 0
+ 00000638					l87:
 							invoke pSwap, ADDR State[esi], ADDR outbuffer[eax]
- 00000630  8D 80 00000D28 R *	    lea    eax, outbuffer[eax]
- 00000636  50		   *	    push   eax
- 00000637  8D 86 0000043C R *	    lea    eax, State[esi]
- 0000063D  50		   *	    push   eax
- 0000063E  E8 FFFFF9BD	   *	    call   pSwap
+ 00000638  8D 80 00000D28 R *	    lea    eax, outbuffer[eax]
+ 0000063E  50		   *	    push   eax
+ 0000063F  8D 86 0000043C R *	    lea    eax, State[esi]
+ 00000645  50		   *	    push   eax
+ 00000646  E8 FFFFF9B5	   *	    call   pSwap
 
- 00000643  46						inc esi
- 00000644  40						inc eax
- 00000645  E2 E9					loop l87
+ 0000064B  46						inc esi
+ 0000064C  40						inc eax
+ 0000064D  E2 E9					loop l87
 
- 00000647  5E					pop esi
- 00000648  59					pop ecx
- 00000649  46					inc esi
- 0000064A  E2 C7				loop l91
+ 0000064F  5E					pop esi
+ 00000650  59					pop ecx
+ 00000651  46					inc esi
+ 00000652  E2 C7				loop l91
 
- 0000064C  C3				ret
- 0000064D			pDecrypt ENDP
+ 00000654  C3				ret
+ 00000655			pDecrypt ENDP
 
 
 				;----------------------------------------------------
- 0000064D			pMenu PROC
+ 00000655			pMenu PROC
 				;----------------------------------------------------
 					
 					; maybe put this in a loop?
 					
- 0000064D  BA 00001628 R		mov edx, OFFSET inmsg
- 00000652  E8 00000000 E		call WriteString
- 00000657  BA 00001528 R		mov edx, OFFSET infile
- 0000065C  B9 00000100			mov ecx, 256
- 00000661  E8 00000000 E		call ReadString
+ 00000655  BA 00001628 R		mov edx, OFFSET inmsg
+ 0000065A  E8 00000000 E		call WriteString
+ 0000065F  BA 00001528 R		mov edx, OFFSET infile
+ 00000664  B9 00000100			mov ecx, 256
+ 00000669  E8 00000000 E		call ReadString
 
- 00000666  BA 00001652 R		mov edx, OFFSET keymsg
- 0000066B  E8 00000000 E		call WriteString
- 00000670  BA 00000468 R		mov edx, OFFSET key
- 00000675  B9 00000010			mov ecx, 16
- 0000067A  E8 00000000 E		call ReadString
+ 0000066E  BA 00001652 R		mov edx, OFFSET keymsg
+ 00000673  E8 00000000 E		call WriteString
+ 00000678  BA 00000468 R		mov edx, OFFSET key
+ 0000067D  B9 00000010			mov ecx, 16
+ 00000682  E8 00000000 E		call ReadString
 
- 0000067F  BA 00001662 R		mov edx, OFFSET filesizemsg
- 00000684  E8 00000000 E		call WriteString
- 00000689  E8 00000000 E		call Readint
- 0000068E  A3 00001680 R		mov sizeoffile, eax
+ 00000687  BA 00001662 R		mov edx, OFFSET filesizemsg
+ 0000068C  E8 00000000 E		call WriteString
+ 00000691  E8 00000000 E		call Readint
+ 00000696  A3 00001680 R		mov sizeoffile, eax
 
- 00000693  BA 00001684 R		mov edx, OFFSET menu
- 00000698  E8 00000000 E		call WriteString
- 0000069D  E8 00000000 E		call ReadInt
+ 0000069B  BA 00001684 R		mov edx, OFFSET menu
+ 000006A0  E8 00000000 E		call WriteString
+ 000006A5  E8 00000000 E		call ReadInt
 
 					.IF eax == 1
- 000006A2  83 F8 01	   *	    cmp    eax, 001h
- 000006A5  75 07	   *	    jne    @C0003
+ 000006AA  83 F8 01	   *	    cmp    eax, 001h
+ 000006AD  75 07	   *	    jne    @C0003
 						invoke pEncrypt
- 000006A7  E8 FFFFFEFB	   *	    call   pEncrypt
+ 000006AF  E8 FFFFFEF7	   *	    call   pEncrypt
 					.ELSEIF eax == 2
- 000006AC  EB 13	   *	    jmp    @C0005
- 000006AE		   *@C0003:
- 000006AE  83 F8 02	   *	    cmp    eax, 002h
- 000006B1  75 07	   *	    jne    @C0006
+ 000006B4  EB 13	   *	    jmp    @C0005
+ 000006B6		   *@C0003:
+ 000006B6  83 F8 02	   *	    cmp    eax, 002h
+ 000006B9  75 07	   *	    jne    @C0006
 						invoke pDecrypt
- 000006B3  E8 FFFFFF42	   *	    call   pDecrypt
+ 000006BB  E8 FFFFFF42	   *	    call   pDecrypt
 					.ELSE
- 000006B8  EB 07	   *	    jmp    @C0008
- 000006BA		   *@C0006:
+ 000006C0  EB 07	   *	    jmp    @C0008
+ 000006C2		   *@C0006:
 						exit
- 000006BA  6A 00	   *	    push   +000000000h
- 000006BC  E8 00000000 E   *	    call   ExitProcess
+ 000006C2  6A 00	   *	    push   +000000000h
+ 000006C4  E8 00000000 E   *	    call   ExitProcess
 					.ENDIF
- 000006C1		   *@C0008:
- 000006C1		   *@C0005:
+ 000006C9		   *@C0008:
+ 000006C9		   *@C0005:
 
- 000006C1  C3				ret
- 000006C2			pMENU ENDP
+ 000006C9  C3				ret
+ 000006CA			pMENU ENDP
 
- 000006C2			main PROC
+ 000006CA			main PROC
 					;invoke pExpandkey                ; Expanding the key works.
 					;invoke pEncryptBlock, ADDR inbuffer[0]
 					;invoke pDecryptBlock, ADDR outbuffer[0]
 
 					invoke pMenu
- 000006C2  E8 FFFFFF86	   *	    call   pMenu
+ 000006CA  E8 FFFFFF86	   *	    call   pMenu
 
 
-					; not reading file into inbuffer.
+					; problem with reading into a file. and also transfering the data from the state to the outbuffer.
 					
- 000006C7  E8 00000000 E		call Dumpregs
+ 000006CF  E8 00000000 E		call Dumpregs
 
 					exit
- 000006CC  6A 00	   *	    push   +000000000h
- 000006CE  E8 00000000 E   *	    call   ExitProcess
- 000006D3			main ENDP
+ 000006D4  6A 00	   *	    push   +000000000h
+ 000006D6  E8 00000000 E   *	    call   ExitProcess
+ 000006DB			main ENDP
 
 
 
 
 				END main
-Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/13/15 19:49:00
+Microsoft (R) Macro Assembler Version 14.00.23026.0	    12/16/15 10:43:57
 AddTwo.asm						     Symbols 2 - 1
 
 
@@ -1428,7 +1436,7 @@ Segments and Groups:
 FLAT . . . . . . . . . . . . . .	GROUP
 STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
 _DATA  . . . . . . . . . . . . .	32 Bit	 000016A9 Para	  Public  'DATA'	
-_TEXT  . . . . . . . . . . . . .	32 Bit	 000006D3 Para	  Public  'CODE'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 000006DB Para	  Public  'CODE'	
 
 
 Procedures, parameters, and locals:
@@ -1535,7 +1543,7 @@ WriteStackFrame  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 WriteString  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteToFile  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteWindowsMsg  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-main . . . . . . . . . . . . . .	P Near	 000006C2 _TEXT	Length= 00000011 Public STDCALL
+main . . . . . . . . . . . . . .	P Near	 000006CA _TEXT	Length= 00000011 Public STDCALL
 pAddExpKey . . . . . . . . . . .	P Near	 0000022B _TEXT	Length= 00000017 Public STDCALL
   L16  . . . . . . . . . . . . .	L Near	 00000234 _TEXT	
 pAddRoundKey . . . . . . . . . .	P Near	 000002C4 _TEXT	Length= 0000001D Public STDCALL
@@ -1548,25 +1556,25 @@ pDecryptBlock  . . . . . . . . .	P Near	 000004FB _TEXT	Length= 0000005F Public 
   blockAdd . . . . . . . . . . .	DWord	 bp + 00000008
   l7437  . . . . . . . . . . . .	L Near	 00000508 _TEXT	
   l2163  . . . . . . . . . . . .	L Near	 00000527 _TEXT	
-pDecrypt . . . . . . . . . . . .	P Near	 000005FA _TEXT	Length= 00000053 Public STDCALL
-  l91  . . . . . . . . . . . . .	L Near	 00000613 _TEXT	
-  l87  . . . . . . . . . . . . .	L Near	 00000630 _TEXT	
+pDecrypt . . . . . . . . . . . .	P Near	 00000602 _TEXT	Length= 00000053 Public STDCALL
+  l91  . . . . . . . . . . . . .	L Near	 0000061B _TEXT	
+  l87  . . . . . . . . . . . . .	L Near	 00000638 _TEXT	
 pEK  . . . . . . . . . . . . . .	P Near	 000001F6 _TEXT	Length= 00000035 Public STDCALL
   a  . . . . . . . . . . . . . .	Byte	 bp + 00000008
 pEncryptBlock  . . . . . . . . .	P Near	 00000492 _TEXT	Length= 00000069 Public STDCALL
   blockAdd . . . . . . . . . . .	DWord	 bp + 00000008
   l5690  . . . . . . . . . . . .	L Near	 000004A1 _TEXT	
   l8902  . . . . . . . . . . . .	L Near	 000004C5 _TEXT	
-pEncrypt . . . . . . . . . . . .	P Near	 000005A7 _TEXT	Length= 00000053 Public STDCALL
-  l8257  . . . . . . . . . . . .	L Near	 000005C0 _TEXT	
-  l90  . . . . . . . . . . . . .	L Near	 000005DD _TEXT	
+pEncrypt . . . . . . . . . . . .	P Near	 000005AB _TEXT	Length= 00000057 Public STDCALL
+  l8257  . . . . . . . . . . . .	L Near	 000005C4 _TEXT	
+  l90  . . . . . . . . . . . . .	L Near	 000005E3 _TEXT	
 pExpandKey . . . . . . . . . . .	P Near	 00000242 _TEXT	Length= 00000082 Public STDCALL
   l5 . . . . . . . . . . . . . .	L Near	 0000024C _TEXT	
   l3 . . . . . . . . . . . . . .	L Near	 00000265 _TEXT	
   l32  . . . . . . . . . . . . .	L Near	 000002A3 _TEXT	
-pFileI . . . . . . . . . . . . .	P Near	 0000055A _TEXT	Length= 0000002E Public STDCALL
-pFileO . . . . . . . . . . . . .	P Near	 00000588 _TEXT	Length= 0000001F Public STDCALL
-pMenu  . . . . . . . . . . . . .	P Near	 0000064D _TEXT	Length= 00000075 Public STDCALL
+pFileI . . . . . . . . . . . . .	P Near	 0000055A _TEXT	Length= 00000032 Public STDCALL
+pFileO . . . . . . . . . . . . .	P Near	 0000058C _TEXT	Length= 0000001F Public STDCALL
+pMenu  . . . . . . . . . . . . .	P Near	 00000655 _TEXT	Length= 00000075 Public STDCALL
 pMixColInv . . . . . . . . . . .	P Near	 000003A2 _TEXT	Length= 000000F0 Public STDCALL
   loop2  . . . . . . . . . . . .	L Near	 000003C1 _TEXT	
   loop1  . . . . . . . . . . . .	L Near	 000003CD _TEXT	
