@@ -656,7 +656,7 @@ pFileI PROC
 	call OpenInputFile
 	mov edi, eax                ; filehandle 
 	mov edx, OFFSET inbuffer
-	mov ecx, FILESIZE
+	mov ecx, sizeoffile
 	call ReadFromFile
 	mov eax, edi
 	call CloseFile
@@ -677,12 +677,13 @@ pFileO PROC
 	call CreateOutputFile
 
 	; filehandle is in eax
+	mov edi, eax
 
 	mov edx, OFFSET outbuffer
-	mov ecx, FILESIZE
+	mov ecx, sizeoffile
 	call WriteToFile
 
-
+	mov eax, edi
 	call CloseFile
 
 
@@ -699,6 +700,9 @@ pEncrypt PROC
 	mov ecx, sizeoffile
 	shr ecx, 4         ; divide by 16
 	inc ecx
+	mov edx, ecx
+	imul edx, 16
+	mov sizeoffile, edx
 
 	mov esi, 0
 	l8257: 
@@ -728,6 +732,9 @@ pEncrypt PROC
 		loop l8257
 
 
+		; Read out to the file
+		invoke pFileO
+
 	ret
 pEncrypt ENDP
 
@@ -737,17 +744,24 @@ pDecrypt PROC
 ;----------------------------------------------------
 	invoke pExpandKey
 	invoke pFileI
-	
+
 	mov ecx, sizeoffile
 	shr ecx, 4         ; divide by 16
 	inc ecx
-
+	mov edx, ecx
+	imul edx, 16
+	mov sizeoffile, edx
 
 	mov esi, 0
 	l91: 
+		push ecx
 		mov eax, esi
 		imul eax, 16
+		push eax
+		push esi
 		invoke pDecryptBlock, ADDR inbuffer[eax]
+		pop esi
+		pop eax
 
 		push ecx
 		push esi
@@ -755,7 +769,9 @@ pDecrypt PROC
 		mov ecx, 16
 		mov esi, 0
 		l87:
+			push eax
 			invoke pSwap, ADDR State[esi], ADDR outbuffer[eax]
+			pop eax
 
 			inc esi
 			inc eax
@@ -764,7 +780,10 @@ pDecrypt PROC
 		pop esi
 		pop ecx
 		inc esi
+		pop ecx
 		loop l91
+
+		invoke pFileO
 
 	ret
 pDecrypt ENDP
@@ -816,9 +835,9 @@ main PROC
 	invoke pMenu
 
 
-	; problem with reading into a file. and also transfering the data from the state to the outbuffer.
+	; problem with decrypting the last 16 bytes
 	
-	call Dumpregs
+	;call Dumpregs
 
 	exit
 main ENDP
