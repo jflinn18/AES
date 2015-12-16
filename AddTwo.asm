@@ -1,18 +1,15 @@
-
-; Program Desription:
-; Author:
-; Creation Date:
-; Revisions:
-; Date: 0 0 0 0Modified by: 0 0 Changes:
+; Program Desription: Assembler implementation of AES Encryption
+; Author: Joseph Flinn and Craig Colegrove
+; Creation Date: 12/1/15
+; Revisions: Yes
+; Date: 12/18/15
 ;
 
-
-;http://www.adamberent.com/documents/AESbyExample.pdf
-
+;http://www.adamberent.com/documents/AESbyExample.pdf document describing the algorithm
 
 INCLUDE Irvine32.inc
 
-FILESIZE = 2048
+FILESIZE = 2048 ;buffer size to read in file
 
 .data
 ; S-Box Lookup Table
@@ -88,58 +85,51 @@ ltable	BYTE	000h, 000h, 019h, 001h, 032h, 002h, 01Ah, 0C6h, 04Bh, 0C7h, 01Bh, 06
 Rcon	DWORD	01000000h, 02000000h, 04000000h, 08000000h, 10000000h, 20000000h, 40000000h, 80000000h, 1B000000h, 36000000h
 		DWORD	6c000000h, 0d8000000h, 0ab000000h, 4d000000h, 9a000000h
 
-;State BYTE 0h,1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh
-State BYTE 0fh, 0eh, 0dh, 0ch, 0bh, 0ah, 9h,8h,7h,6h,5h,4h,3h,2h,1h,0h
-;State BYTE 4 DUP(0,1,2,3)
-;State BYTE 4 DUP(04h, 66h, 81h, 0e5h)
-;State BYTE 4 DUP(0d4h, 0bfh, 5dh, 30h)
-temp BYTE 16 DUP(0)
-matrix BYTE 2,3,1,1
-matrixinv BYTE 0eh, 0bh, 0dh, 09h
-keytest BYTE 1,2,3,4
+State BYTE 0fh, 0eh, 0dh, 0ch, 0bh, 0ah, 9h,8h,7h,6h,5h,4h,3h,2h,1h,0h ;what the current pass of the encryption is
+temp BYTE 16 DUP(0) ;used in MixCol
+matrix BYTE 2,3,1,1 ;used in MixCol
+matrixinv BYTE 0eh, 0bh, 0dh, 09h ;used in MixCol
+key BYTE 34h, 6ch, 25h,56h, 0ffh, 9ah, 89h, 0d2h, 99h, 0f1h, 4bh, 25h, 50h, 80h, 4fh, 27h ;filled with random values in case their key is < 16 bytes
+expKey BYTE 176 DUP(0) ;where the expanded key will go
 
-;key BYTE 0h,1h,2h,3h,4h,5h,6h,7h,8h,9,0ah,0bh,0ch,0dh,0eh,0fh
-key BYTE 0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3
-expKey BYTE 176 DUP(0)
-
-
-inbuffer BYTE FILESIZE DUP(0)
-;inbuffer BYTE "mississippiState",0
-outbuffer BYTE FILESIZE DUP(0)
-
-
-infile BYTE 256 DUP(0)
+inbuffer BYTE FILESIZE DUP(0) ;what will be read in
+outbuffer BYTE FILESIZE DUP(0) ;what is written out
+infile BYTE 256 DUP(0) ;file name to be read in
 
 inmsg BYTE "Enter the file name containing the text: ",0
 keymsg BYTE "Enter the key: ",0
 filesizemsg BYTE "Enter size of file in bytes: ",0
 
-sizeoffile DWORD ?
+sizeoffile DWORD ? ;how big the input file is.
 
-menu BYTE "1. Encrypt", 0ah, 0dh, "2. Decrypt", 0ah, 0dh, "3. Exit", 0ah, 0dh, ">> ",0
-
+menu BYTE "1. Encrypt", 0ah, 0dh, "2. Decrypt", 0ah, 0dh, "3. Exit", 0ah, 0dh, ">> ",0 ;items to put in the menu
 
 .code
 
 
-;--------------
+;-----------------------------------------------------
 pSwap PROC USES eax ebx ecx edx y:PTR BYTE, x:PTR BYTE
-;--------------
+; Swaps two items, even if they're both in memory
+; Receives: Two items to be passed in
+; Returns: Nothing. It swaps the actual values
+;-----------------------------------------------------
 	mov edx, y
 	mov al, [edx]
 	mov ecx, x
 	mov bl, [ecx]
 	mov [edx], bl
 	mov [ecx], al
+
 	ret
 pSwap ENDP
 
 
-;---------------------------
+;----------------------------------------------------
 pSubWord PROC
-; Receives = eax, the 4 bytes to lookup
-; Returns = eax, the 4 bytes that came from the lookup
-;---------------------------
+; Used to expand the key
+; Receives: eax, the 4 bytes to lookup
+; Returns: eax, the 4 bytes that came from the lookup
+;----------------------------------------------------
 	push esi
 	push ecx
 	mov ecx, 4
@@ -151,77 +141,84 @@ l2:
 	mov bl, BYTE PTR [esi]
 	mov al, bl
 
-
 	rol eax, 8
 	loop l2
 
 	pop ecx
 	pop esi
+
 	ret
 pSubWord ENDP
 
-;----------------------------
+
+;----------------------------------
 pShiftRow PROC
-; Requires = Nothing
-;----------------------------
-invoke pSwap, ADDR State[1], ADDR State[5]
-invoke pSwap, ADDR State[5], ADDR State[9]
-invoke pSwap, ADDR State[9], ADDR State[13]
+; Shifts the State matrix
+; Receives: Nothing
+; Returns: Nothing. Modifies State.
+;----------------------------------
+	invoke pSwap, ADDR State[1], ADDR State[5]
+	invoke pSwap, ADDR State[5], ADDR State[9]
+	invoke pSwap, ADDR State[9], ADDR State[13]
 
-invoke pSwap, ADDR State[2], ADDR State[10]
-invoke pSwap, ADDR State[6], ADDR State[14]
+	invoke pSwap, ADDR State[2], ADDR State[10]
+	invoke pSwap, ADDR State[6], ADDR State[14]
 
-invoke pSwap, ADDR State[15], ADDR State[11]
-invoke pSwap, ADDR State[11], ADDR State[7]
-invoke pSwap, ADDR State[7], ADDR State[3]
+	invoke pSwap, ADDR State[15], ADDR State[11]
+	invoke pSwap, ADDR State[11], ADDR State[7]
+	invoke pSwap, ADDR State[7], ADDR State[3]
 
- ret
+	 ret
 pShiftRow ENDP
 
-;------------------------------
+
+;-------------------------------------------------
 pMultGalois PROC USES esi ebx edx a:BYTE, b:BYTE
-; Returns = in al
-;------------------------------
-.IF (a == 0)
-mov al, 0
-jmp quit
-.ENDIF
-mov eax, 0
-mov esi, OFFSET ltable
-mov al, a
-add esi, eax
-mov bl, BYTE PTR [esi]
+; Does multiplication over the Galois lookup table
+; Receives: Nothing
+; Returns:  al
+;-------------------------------------------------
+	.IF (a == 0)
+	mov al, 0
+	jmp quit
+	.ENDIF
+	mov eax, 0
+	mov esi, OFFSET ltable
+	mov al, a
+	add esi, eax
+	mov bl, BYTE PTR [esi]
 
-mov dl, bl
+	mov dl, bl
 
-mov eax,0
-mov esi, OFFSET ltable
-mov al, b
-add esi, eax
-mov bl, BYTE PTR [esi]
+	mov eax,0
+	mov esi, OFFSET ltable
+	mov al, b
+	add esi, eax
+	mov bl, BYTE PTR [esi]
 
-mov dh, bl
+	mov dh, bl
 
-adc dl, dh      ; L + L
+	adc dl, dh      ; L + L
 
-mov eax, 0
-mov esi, OFFSET etable
-mov al, dl
-;add esi, eax
-adc esi, eax
-mov al, BYTE PTR [esi]
+	mov eax, 0
+	mov esi, OFFSET etable
+	mov al, dl
+	;add esi, eax
+	adc esi, eax
+	mov al, BYTE PTR [esi]
 
-quit:
-ret
+	quit:
+	ret
 pMultGalois ENDP
 
 
-;---------------------------
+;--------------------------------------------------------------
 pMixCol PROC USES eax ebx ecx edx esi edi
-;---------------------------
+; Last step of Encryption round. Call the Galois Multiplication
+; Receives: Nothing
+; Returns: Nothing. Modifies State.
+;--------------------------------------------------------------
 	mov eax, 0
-
-
 	mov ecx, 4
 	mov esi, 0
 	mov ebx, 0
@@ -250,14 +247,9 @@ loop2:
 
 		mov temp[edi+esi], dl
 
-		;this will be mShiftMatrix
 		invoke pSwap, ADDR matrix[2], ADDR matrix[3]
 		invoke pSwap, ADDR matrix[1], ADDR matrix[2]
 		invoke pSwap, ADDR matrix[0], ADDR matrix[1]
-
-
-
-		;invoke pSwap, ADDR State[1], ADDR State[2]
 
 		inc esi
 
@@ -270,24 +262,23 @@ loop2:
 		dec ecx
 	jne loop2
 	
-
 	mov ecx, 16 ; change back to 16
 	mov esi, 0
 	L2:
 		invoke pSwap, ADDR State[esi], ADDR temp[esi]
 		inc esi
 		loop L2
-
-ret
+	ret
 pMixCol ENDP
 
 
-;-----------------------------
+;-----------------------------------------------------------------------
 pEK PROC a:BYTE
-; a == 1 || a == 4
-; Receives = esi, the index
-; Returns = eax, a DWORD containing the last 4 bytes of the expanded key.
-;-----------------------------
+; Gives 4 bytes of the expanded key
+; a will be either 1 or 4
+; Receives: esi, the index
+; Returns: eax, a DWORD containing the last 4 bytes of the expanded key.
+;-----------------------------------------------------------------------
 	mov eax, esi
 	movzx ebx, a
 	sub eax, ebx
@@ -317,131 +308,134 @@ pEK ENDP
 
 ;--------------------------
 pAddExpKey PROC
-; This takes whatever 
-; Receives = eax
+; Adds the Expanded Key
+; Receives: eax
+; Returns: Nothing
 ;--------------------------
 	push ecx
 	mov ecx, 4
 	rol eax, 8      ; gets the "first value"
-L16:
-	mov expKey[edi], al
-	rol eax, 8
+	L16:
+		mov expKey[edi], al
+		rol eax, 8
 
-	inc edi
-	loop L16
+		inc edi
+		loop L16
 
 	pop ecx
+
 	ret
 pAddExpKey ENDP
 
 
 ;---------------------------------------
 pExpandKey PROC
+; Expands the key into 176 bytes
+; Receives: Nothing
+; Returns: Nothing.
 ;---------------------------------------
 	mov ecx, 16
 	mov edi, 0
 
 	;This is the K(0), K(4), K(8), K(12)
-l5:
-	mov al, key[edi]
-	mov expkey[edi], al
-	inc edi
+	l5:
+		mov al, key[edi]
+		mov expkey[edi], al
+		inc edi
+		loop l5
 
-	loop l5
-
-	
 	mov esi, 4	
-	mov ecx, 10
-				
+	mov ecx, 10		
 
-l3:
-	; Round # is stored in esi
-	invoke pEK, 1					  ; typo????
-	rol eax, 8                        ;RotWord  --instead of pRotateKey
-	invoke pSubWord
+	l3:
+		; Round # is stored in esi
+		invoke pEK, 1					  
+		rol eax, 8 
+		invoke pSubWord
 
-	mov edx, esi
-	shr edx, 2           ; divide by 4
-	dec edx
+		mov edx, esi
+		shr edx, 2           ; divide by 4
+		dec edx
 
-	mov ebx, 0
-	imul edx, 4
-	mov ebx, Rcon[edx]
+		mov ebx, 0
+		imul edx, 4
+		mov ebx, Rcon[edx]
 
-	xor eax, ebx
-	push eax
-
-	invoke pEK, 4
-	mov ebx, eax
-	pop eax
-
-	xor eax, ebx
-
-	inc esi
-	invoke pAddExpKey
-
-	push ecx
-	mov ecx, 3
-
-	l32:
-		invoke pEK, 1
+		xor eax, ebx
 		push eax
+
 		invoke pEK, 4
 		mov ebx, eax
 		pop eax
+
 		xor eax, ebx
-		invoke pAddExpKey
 
 		inc esi
-		loop l32
-	
-	pop ecx
-	
+		invoke pAddExpKey
 
-	dec ecx
-	jne l3
+		push ecx
+		mov ecx, 3
+
+		l32:
+			invoke pEK, 1
+			push eax
+			invoke pEK, 4
+			mov ebx, eax
+			pop eax
+			xor eax, ebx
+			invoke pAddExpKey
+
+			inc esi
+			loop l32
+	
+		pop ecx
+	
+		dec ecx
+		jne l3
 
 	ret
 pExpandKey ENDP
 
 
-;---------------------------
+;-------------------------------------------------
 pAddRoundKey PROC
-; Requires edi, the index of the exp
-;---------------------------
+; XORs part of State with part of the expanded key
+; Receives: edi, the index of the expanded key
+; Returns: Nothing. Modifies State
+;-------------------------------------------------
 	pushad
 	mov ecx, 16
 	mov esi, 0
-L1:
-	mov al, expKey[edi]
-	xor State[esi], al 
+	L1:
+		mov al, expKey[edi]
+		xor State[esi], al 
 	
-	inc edi
-	inc esi
-	loop L1
+		inc edi
+		inc esi
+		loop L1
 
 	popad
-
 	ret
 pAddRoundKey ENDP
 
 
-;---------------------------
+;---------------------------------------
 pByteSub PROC
-;---------------------------
+; Changes State to its sbox lookup value
+; Receives: Nothing
+; Returns: Nothing. Modifies State
+;---------------------------------------
 	pushad
 	mov ecx, 16
 
-L2:
-	mov eax, 0
-
-	mov al, State[ecx-1]; lower nibble
-	mov esi, OFFSET sbox
-	add esi, eax
-	mov bl, BYTE PTR [esi]
-	mov State[ecx-1], bl
-
-	loop L2
+	L2:
+		mov eax, 0
+		mov al, State[ecx-1]; lower nibble
+		mov esi, OFFSET sbox
+		add esi, eax
+		mov bl, BYTE PTR [esi]
+		mov State[ecx-1], bl
+		loop L2
 
 	popad
 
@@ -449,23 +443,25 @@ L2:
 pByteSub ENDP
 
 
-
-;---------------------------------------
+;-------------------------------------------
 pByteSubInv PROC
-;---------------------------------------
+; Inverse of pByteSub using the inverse sbox
+; Receives: Nothing
+; Returns: Nothing. Modifies State
+;-------------------------------------------
 	pushad
 	mov ecx, 16
 
-L2:
-	mov eax, 0
+	L2:
+		mov eax, 0
 
-	mov al, State[ecx-1]; lower nibble
-	mov esi, OFFSET sboxinv
-	add esi, eax
-	mov bl, BYTE PTR [esi]
-	mov State[ecx-1], bl
+		mov al, State[ecx-1]; lower nibble
+		mov esi, OFFSET sboxinv
+		add esi, eax
+		mov bl, BYTE PTR [esi]
+		mov State[ecx-1], bl
 
-	loop L2
+		loop L2
 
 	popad
 
@@ -474,82 +470,84 @@ L2:
 pByteSubInv ENDP
 
 
-;----------------------------
+;---------------------------------
 pShiftRowInv PROC
-; Requires = Nothing
-;----------------------------
-invoke pSwap, ADDR State[9], ADDR State[13]
-invoke pSwap, ADDR State[5], ADDR State[9]
-invoke pSwap, ADDR State[1], ADDR State[5]
+; Other direction of pShiftRow
+; Receives: Nothing
+; Returns: Nothing. Modifies State
+;---------------------------------
+	invoke pSwap, ADDR State[9], ADDR State[13]
+	invoke pSwap, ADDR State[5], ADDR State[9]
+	invoke pSwap, ADDR State[1], ADDR State[5]
 
-invoke pSwap, ADDR State[2], ADDR State[10]
-invoke pSwap, ADDR State[6], ADDR State[14]
+	invoke pSwap, ADDR State[2], ADDR State[10]
+	invoke pSwap, ADDR State[6], ADDR State[14]
 
-invoke pSwap, ADDR State[7], ADDR State[3]
-invoke pSwap, ADDR State[11], ADDR State[7]
-invoke pSwap, ADDR State[11], ADDR State[15]
+	invoke pSwap, ADDR State[7], ADDR State[3]
+	invoke pSwap, ADDR State[11], ADDR State[7]
+	invoke pSwap, ADDR State[11], ADDR State[15]
 
- ret
+	 ret
 pShiftRowInv ENDP
 
 
-
-;---------------------------
+;-------------------------------------------
 pMixColInv PROC USES eax ebx ecx edx esi edi
-;---------------------------
+; Opposite of pMixCol
+; Receives: Nothing
+; Returns: Nothing. Modifies State
+;-------------------------------------------
 	mov eax, 0
-
 
 	mov ecx, 4
 	mov esi, 0
 	mov ebx, 0
 	mov edi, 0
-loop2:
-	push ecx
-	push edi
-	mov ecx, 4
-	mov esi, 0
+	loop2:
+		push ecx
+		push edi
+		mov ecx, 4
+		mov esi, 0
 
-	loop1: 
-		invoke pMultGalois, State[edi+0], matrixinv[0]
-		mov dl, al
+		loop1: 
+			invoke pMultGalois, State[edi+0], matrixinv[0]
+			mov dl, al
 
-		invoke pMultGalois, State[edi+1], matrixinv[1]
-		mov dh, al
+			invoke pMultGalois, State[edi+1], matrixinv[1]
+			mov dh, al
 
-		invoke pMultGalois, State[edi+2], matrixinv[2]
-		mov bl, al
+			invoke pMultGalois, State[edi+2], matrixinv[2]
+			mov bl, al
 
-		invoke pMultGalois, State[edi+3], matrixinv[3]
-		mov bh, al
+			invoke pMultGalois, State[edi+3], matrixinv[3]
+			mov bh, al
 
-		xor dl, dh
-		xor dl, bl
-		xor dl, bh
+			xor dl, dh
+			xor dl, bl
+			xor dl, bh
 
-		mov temp[edi+esi], dl
+			mov temp[edi+esi], dl
 
-		;this will be mShiftMatrix
-		invoke pSwap, ADDR matrixinv[2], ADDR matrixinv[3]
-		invoke pSwap, ADDR matrixinv[1], ADDR matrixinv[2]
-		invoke pSwap, ADDR matrixinv[0], ADDR matrixinv[1]
+			;this will be mShiftMatrix
+			invoke pSwap, ADDR matrixinv[2], ADDR matrixinv[3]
+			invoke pSwap, ADDR matrixinv[1], ADDR matrixinv[2]
+			invoke pSwap, ADDR matrixinv[0], ADDR matrixinv[1]
 
 
 
-		;invoke pSwap, ADDR State[1], ADDR State[2]
+			;invoke pSwap, ADDR State[1], ADDR State[2]
 
-		inc esi
+			inc esi
 
-		dec ecx
-		jne loop1
+			dec ecx
+			jne loop1
 		pop edi
 		pop ecx
 
 		add edi, 4
 		dec ecx
-	jne loop2
+		jne loop2
 	
-
 	mov ecx, 16 ; change back to 16
 	mov esi, 0
 	L2:
@@ -557,16 +555,18 @@ loop2:
 		inc esi
 		loop L2
 
-ret
+	ret
 pMixColInv ENDP
 
 
-
-;----------------------------
+;------------------------------------------------------------
 pEncryptBlock PROC USES ecx esi blockAdd:DWORD
+; Encrypts a block of 16 bytes
 ; blockAdd is the memory address of the starting index of the 
 ;    the block that is currently being encrypted
-;----------------------------
+; Receives: Nothing
+; Returns: Nothing. Modifies State
+;------------------------------------------------------------
 	 
 	; loop and move the blockAdd value into State
 	mov ecx, 16
@@ -607,12 +607,14 @@ pEncryptBlock PROC USES ecx esi blockAdd:DWORD
 pEncryptBlock ENDP
 
 
-
-;---------------------------------------
+;------------------------------------------------------------
 pDecryptBlock PROC blockAdd:DWORD
+; Decrypts a block of 16 bytes
 ; blockAdd is the memory address of the starting index of the 
 ;    the block that is currently being encrypted
-;---------------------------------------
+; Receives: Nothing
+; Returns: Nothing. Modifies State
+;------------------------------------------------------------
 	mov ecx, 16
 	mov esi, 0
 	l7437:
@@ -651,6 +653,9 @@ pDecryptBlock ENDP
 
 ;------------------------------------------------
 pFileI PROC
+; Reads from a file, filling inbuffer
+; Receives: Nothing
+; Returns: Nothing. Fills inbuffer
 ;------------------------------------------------
 	mov edx, OFFSET infile
 	call OpenInputFile
@@ -661,17 +666,14 @@ pFileI PROC
 	mov eax, edi
 	call CloseFile
 
-	; Debugging purposes???
-
-	mov edx, OFFSET inbuffer
-	call WriteString
-	call crlf
-
 	ret
 pFileI ENDP
 
 ;----------------------------------------------------
 pFileO PROC
+; Outputs the encrypted/decrypted text to a file
+; Receives: Nothing
+; Returns: Nothing. Modifies outbuffer
 ;----------------------------------------------------
 	mov edx, OFFSET infile
 	call CreateOutputFile
@@ -686,20 +688,27 @@ pFileO PROC
 	mov eax, edi
 	call CloseFile
 
-
 	ret
 pFileO ENDP
 
 
 ;----------------------------------------------------
 pEncrypt PROC
+; Encrypts the file. Makes file size divisible by 16.
+; Receives: Nothing
+; Returns: Nothing
 ;----------------------------------------------------
 	invoke pExpandKey
 	invoke pFileI
 
 	mov ecx, sizeoffile
 	shr ecx, 4         ; divide by 16
-	inc ecx
+	mov edx, sizeoffile
+	and edx, 00000000000000000000000000001111b
+	.IF (edx != 0)
+		inc ecx
+	.ENDIF
+
 	mov edx, ecx
 	imul edx, 16
 	mov sizeoffile, edx
@@ -741,6 +750,9 @@ pEncrypt ENDP
 
 ;----------------------------------------------------
 pDecrypt PROC
+; Decrypts the file. Takes the new file size
+; Receives: Nothing
+; Returns: Nothing
 ;----------------------------------------------------
 	invoke pExpandKey
 	invoke pFileI
@@ -748,9 +760,6 @@ pDecrypt PROC
 	mov ecx, sizeoffile
 	shr ecx, 4         ; divide by 16
 	inc ecx
-	mov edx, ecx
-	imul edx, 16
-	mov sizeoffile, edx
 
 	mov esi, 0
 	l91: 
@@ -791,58 +800,55 @@ pDecrypt ENDP
 
 ;----------------------------------------------------
 pMenu PROC
+; The UI for the console
+; Receives: Nothing
+; Returns: Nothing
 ;----------------------------------------------------
-	
-	; maybe put this in a loop?
-	
-	mov edx, OFFSET inmsg
-	call WriteString
-	mov edx, OFFSET infile
-	mov ecx, 256
-	call ReadString
 
-	mov edx, OFFSET keymsg
-	call WriteString
-	mov edx, OFFSET key
-	mov ecx, 16
-	call ReadString
+	l75:
+		mov edx, OFFSET menu
+		call WriteString
+		call ReadInt
+		push eax
 
-	mov edx, OFFSET filesizemsg
-	call WriteString
-	call Readint
-	mov sizeoffile, eax
+		.IF eax != 1 && eax != 2
+			exit
+		.ENDIF
 
-	mov edx, OFFSET menu
-	call WriteString
-	call ReadInt
+		mov edx, OFFSET inmsg
+		call WriteString
+		mov edx, OFFSET infile
+		mov ecx, 256
+		call ReadString
 
-	.IF eax == 1
-		invoke pEncrypt
-	.ELSEIF eax == 2
-		invoke pDecrypt
-	.ELSE
-		exit
-	.ENDIF
+		mov edx, OFFSET keymsg
+		call WriteString
+		mov edx, OFFSET key
+		mov ecx, 16
+		call ReadString
 
+		mov edx, OFFSET filesizemsg
+		call WriteString
+		call Readint
+		mov sizeoffile, eax
+
+
+		pop eax
+		.IF eax == 1
+			invoke pEncrypt
+		.ELSEIF eax == 2
+			invoke pDecrypt
+		.ENDIF
+
+		call clrscr
+		jmp l75
 	ret
 pMENU ENDP
 
+
 main PROC
-	;invoke pExpandkey                ; Expanding the key works.
-	;invoke pEncryptBlock, ADDR inbuffer[0]
-	;invoke pDecryptBlock, ADDR outbuffer[0]
-
 	invoke pMenu
-
-
-	; problem with decrypting the last 16 bytes
-	
-	;call Dumpregs
 
 	exit
 main ENDP
-
-
-
-
 END main
